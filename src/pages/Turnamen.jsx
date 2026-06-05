@@ -56,11 +56,11 @@ const Turnamen = () => {
         {/* Tournament Gallery */}
         <div className="gallery-grid">
           {[
-            { type: 'img', src: '/images/tur1-1.jpeg', label: 'Moment 01', color: '#00d4ff' },
-            { type: 'img', src: '/images/tur1-2.jpeg', label: 'Moment 02', color: '#a855f7' },
-            { type: 'img', src: '/images/tur1-3.jpeg', label: 'Moment 03', color: '#ec4899' },
-            { type: 'img', src: '/images/tur1-7.jpeg', label: 'Moment 04', color: '#ec4899' },
-            { type: 'video', src: '/images/tur1-11.mp4', label: '🎬 Highlight', color: '#00d4ff' }
+            { type: 'img', src: import.meta.env.BASE_URL + 'images/tur1-1.jpeg', label: 'Moment 01', color: '#00d4ff' },
+            { type: 'img', src: import.meta.env.BASE_URL + 'images/tur1-2.jpeg', label: 'Moment 02', color: '#a855f7' },
+            { type: 'img', src: import.meta.env.BASE_URL + 'images/tur1-3.jpeg', label: 'Moment 03', color: '#ec4899' },
+            { type: 'img', src: import.meta.env.BASE_URL + 'images/tur1-7.jpeg', label: 'Moment 04', color: '#ec4899' },
+            { type: 'video', src: import.meta.env.BASE_URL + 'images/tur1-11.mp4', label: '🎬 Highlight', color: '#00d4ff' }
           ].map((item, i) => (
             <div className="gallery-item" key={i}>
               {item.type === 'img' ? (

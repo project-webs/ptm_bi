@@ -16,7 +16,7 @@ const Navbar = () => {
     <header>
       <div className="header-content">
         <Link to="/" className="logo">
-          <img src="/logo_bi.png" alt="PTM Batan Indah Logo" style={{ width: '60px', height: '60px', objectFit: 'contain', filter: 'drop-shadow(0 0 10px rgba(0, 212, 255, 0.5))' }} />
+          <img src={`${import.meta.env.BASE_URL}logo_bi.png`} alt="PTM Batan Indah Logo" style={{ width: '60px', height: '60px', objectFit: 'contain', filter: 'drop-shadow(0 0 10px rgba(0, 212, 255, 0.5))' }} />
           <span>PTM<br/><span style={{ fontSize: '0.6em', letterSpacing: '3px' }}>BATAN</span></span>
         </Link>
         <nav className={isMenuOpen ? 'active' : ''}>
