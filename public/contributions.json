@@ -1,0 +1,515 @@
+{
+    "status": "success",
+    "data": [
+        {
+            "id": 1,
+            "member_id": 2,
+            "period": "2026-06-01",
+            "amount": 25000,
+            "payment_date": "2026-06-04",
+            "status": "paid",
+            "notes": "Lunas",
+            "member": {
+                "id": 2,
+                "name": "Agus C.",
+                "member_number": "PTM-002",
+                "status": "active"
+            }
+        },
+        {
+            "id": 2,
+            "member_id": 2,
+            "period": "2026-07-01",
+            "amount": 25000,
+            "payment_date": "2026-06-04",
+            "status": "paid",
+            "notes": "Lunas",
+            "member": {
+                "id": 2,
+                "name": "Agus C.",
+                "member_number": "PTM-002",
+                "status": "active"
+            }
+        },
+        {
+            "id": 3,
+            "member_id": 15,
+            "period": "2026-06-01",
+            "amount": 25000,
+            "payment_date": "2026-06-04",
+            "status": "paid",
+            "notes": "Lunas",
+            "member": {
+                "id": 15,
+                "name": "Dunes Sukoco",
+                "member_number": "PTM-015",
+                "status": "active"
+            }
+        },
+        {
+            "id": 4,
+            "member_id": 15,
+            "period": "2026-07-01",
+            "amount": 25000,
+            "payment_date": "2026-06-04",
+            "status": "paid",
+            "notes": "Lunas",
+            "member": {
+                "id": 15,
+                "name": "Dunes Sukoco",
+                "member_number": "PTM-015",
+                "status": "active"
+            }
+        },
+        {
+            "id": 5,
+            "member_id": 15,
+            "period": "2026-08-01",
+            "amount": 25000,
+            "payment_date": "2026-06-04",
+            "status": "paid",
+            "notes": "Lunas",
+            "member": {
+                "id": 15,
+                "name": "Dunes Sukoco",
+                "member_number": "PTM-015",
+                "status": "active"
+            }
+        },
+        {
+            "id": 6,
+            "member_id": 15,
+            "period": "2026-09-01",
+            "amount": 25000,
+            "payment_date": "2026-06-04",
+            "status": "paid",
+            "notes": "Lunas",
+            "member": {
+                "id": 15,
+                "name": "Dunes Sukoco",
+                "member_number": "PTM-015",
+                "status": "active"
+            }
+        },
+        {
+            "id": 7,
+            "member_id": 28,
+            "period": "2026-06-01",
+            "amount": 25000,
+            "payment_date": "2026-06-04",
+            "status": "paid",
+            "notes": "Lunas",
+            "member": {
+                "id": 28,
+                "name": "Ismu H.",
+                "member_number": "PTM-028",
+                "status": "active"
+            }
+        },
+        {
+            "id": 8,
+            "member_id": 28,
+            "period": "2026-07-01",
+            "amount": 25000,
+            "payment_date": "2026-06-04",
+            "status": "paid",
+            "notes": "Lunas",
+            "member": {
+                "id": 28,
+                "name": "Ismu H.",
+                "member_number": "PTM-028",
+                "status": "active"
+            }
+        },
+        {
+            "id": 9,
+            "member_id": 34,
+            "period": "2026-06-01",
+            "amount": 25000,
+            "payment_date": "2026-06-04",
+            "status": "paid",
+            "notes": "Lunas",
+            "member": {
+                "id": 34,
+                "name": "M. Ridho",
+                "member_number": "PTM-034",
+                "status": "active"
+            }
+        },
+        {
+            "id": 10,
+            "member_id": 34,
+            "period": "2026-07-01",
+            "amount": 25000,
+            "payment_date": "2026-06-04",
+            "status": "paid",
+            "notes": "Lunas",
+            "member": {
+                "id": 34,
+                "name": "M. Ridho",
+                "member_number": "PTM-034",
+                "status": "active"
+            }
+        },
+        {
+            "id": 11,
+            "member_id": 36,
+            "period": "2026-06-01",
+            "amount": 25000,
+            "payment_date": "2026-06-04",
+            "status": "paid",
+            "notes": "Lunas",
+            "member": {
+                "id": 36,
+                "name": "Marsono",
+                "member_number": "PTM-036",
+                "status": "active"
+            }
+        },
+        {
+            "id": 12,
+            "member_id": 36,
+            "period": "2026-07-01",
+            "amount": 25000,
+            "payment_date": "2026-06-04",
+            "status": "paid",
+            "notes": "Lunas",
+            "member": {
+                "id": 36,
+                "name": "Marsono",
+                "member_number": "PTM-036",
+                "status": "active"
+            }
+        },
+        {
+            "id": 13,
+            "member_id": 36,
+            "period": "2026-08-01",
+            "amount": 25000,
+            "payment_date": "2026-06-04",
+            "status": "paid",
+            "notes": "Lunas",
+            "member": {
+                "id": 36,
+                "name": "Marsono",
+                "member_number": "PTM-036",
+                "status": "active"
+            }
+        },
+        {
+            "id": 14,
+            "member_id": 36,
+            "period": "2026-09-01",
+            "amount": 25000,
+            "payment_date": "2026-06-04",
+            "status": "paid",
+            "notes": "Lunas",
+            "member": {
+                "id": 36,
+                "name": "Marsono",
+                "member_number": "PTM-036",
+                "status": "active"
+            }
+        },
+        {
+            "id": 15,
+            "member_id": 36,
+            "period": "2026-10-01",
+            "amount": 25000,
+            "payment_date": "2026-06-04",
+            "status": "paid",
+            "notes": "Lunas",
+            "member": {
+                "id": 36,
+                "name": "Marsono",
+                "member_number": "PTM-036",
+                "status": "active"
+            }
+        },
+        {
+            "id": 16,
+            "member_id": 38,
+            "period": "2026-06-01",
+            "amount": 25000,
+            "payment_date": "2026-06-04",
+            "status": "paid",
+            "notes": "Lunas",
+            "member": {
+                "id": 38,
+                "name": "Mustangimah",
+                "member_number": "PTM-038",
+                "status": "active"
+            }
+        },
+        {
+            "id": 17,
+            "member_id": 38,
+            "period": "2026-07-01",
+            "amount": 25000,
+            "payment_date": "2026-06-04",
+            "status": "paid",
+            "notes": "Lunas",
+            "member": {
+                "id": 38,
+                "name": "Mustangimah",
+                "member_number": "PTM-038",
+                "status": "active"
+            }
+        },
+        {
+            "id": 18,
+            "member_id": 38,
+            "period": "2026-08-01",
+            "amount": 25000,
+            "payment_date": "2026-06-04",
+            "status": "paid",
+            "notes": "Lunas",
+            "member": {
+                "id": 38,
+                "name": "Mustangimah",
+                "member_number": "PTM-038",
+                "status": "active"
+            }
+        },
+        {
+            "id": 19,
+            "member_id": 38,
+            "period": "2026-09-01",
+            "amount": 25000,
+            "payment_date": "2026-06-04",
+            "status": "paid",
+            "notes": "Lunas",
+            "member": {
+                "id": 38,
+                "name": "Mustangimah",
+                "member_number": "PTM-038",
+                "status": "active"
+            }
+        },
+        {
+            "id": 20,
+            "member_id": 38,
+            "period": "2026-10-01",
+            "amount": 25000,
+            "payment_date": "2026-06-04",
+            "status": "paid",
+            "notes": "Lunas",
+            "member": {
+                "id": 38,
+                "name": "Mustangimah",
+                "member_number": "PTM-038",
+                "status": "active"
+            }
+        },
+        {
+            "id": 21,
+            "member_id": 39,
+            "period": "2026-01-01",
+            "amount": 50000,
+            "payment_date": "2026-06-04",
+            "status": "paid",
+            "notes": "Iuran SP",
+            "member": {
+                "id": 39,
+                "name": "Nada Marnada",
+                "member_number": "PTM-039",
+                "status": "active"
+            }
+        },
+        {
+            "id": 22,
+            "member_id": 39,
+            "period": "2026-06-01",
+            "amount": 25000,
+            "payment_date": "2026-06-04",
+            "status": "paid",
+            "notes": "Lunas",
+            "member": {
+                "id": 39,
+                "name": "Nada Marnada",
+                "member_number": "PTM-039",
+                "status": "active"
+            }
+        },
+        {
+            "id": 23,
+            "member_id": 39,
+            "period": "2026-07-01",
+            "amount": 25000,
+            "payment_date": "2026-06-04",
+            "status": "paid",
+            "notes": "Lunas",
+            "member": {
+                "id": 39,
+                "name": "Nada Marnada",
+                "member_number": "PTM-039",
+                "status": "active"
+            }
+        },
+        {
+            "id": 24,
+            "member_id": 48,
+            "period": "2026-01-01",
+            "amount": 50000,
+            "payment_date": "2026-06-04",
+            "status": "paid",
+            "notes": "Iuran SP",
+            "member": {
+                "id": 48,
+                "name": "Sukoco R.",
+                "member_number": "PTM-048",
+                "status": "active"
+            }
+        },
+        {
+            "id": 25,
+            "member_id": 48,
+            "period": "2026-06-01",
+            "amount": 25000,
+            "payment_date": "2026-06-04",
+            "status": "paid",
+            "notes": "Lunas",
+            "member": {
+                "id": 48,
+                "name": "Sukoco R.",
+                "member_number": "PTM-048",
+                "status": "active"
+            }
+        },
+        {
+            "id": 26,
+            "member_id": 48,
+            "period": "2026-07-01",
+            "amount": 25000,
+            "payment_date": "2026-06-04",
+            "status": "paid",
+            "notes": "Lunas",
+            "member": {
+                "id": 48,
+                "name": "Sukoco R.",
+                "member_number": "PTM-048",
+                "status": "active"
+            }
+        },
+        {
+            "id": 27,
+            "member_id": 51,
+            "period": "2026-06-01",
+            "amount": 25000,
+            "payment_date": "2026-06-04",
+            "status": "paid",
+            "notes": "Lunas",
+            "member": {
+                "id": 51,
+                "name": "Teguh Iman",
+                "member_number": "PTM-051",
+                "status": "active"
+            }
+        },
+        {
+            "id": 28,
+            "member_id": 51,
+            "period": "2026-07-01",
+            "amount": 25000,
+            "payment_date": "2026-06-04",
+            "status": "paid",
+            "notes": "Lunas",
+            "member": {
+                "id": 51,
+                "name": "Teguh Iman",
+                "member_number": "PTM-051",
+                "status": "active"
+            }
+        },
+        {
+            "id": 29,
+            "member_id": 51,
+            "period": "2026-08-01",
+            "amount": 25000,
+            "payment_date": "2026-06-04",
+            "status": "paid",
+            "notes": "Lunas",
+            "member": {
+                "id": 51,
+                "name": "Teguh Iman",
+                "member_number": "PTM-051",
+                "status": "active"
+            }
+        },
+        {
+            "id": 30,
+            "member_id": 51,
+            "period": "2026-09-01",
+            "amount": 25000,
+            "payment_date": "2026-06-04",
+            "status": "paid",
+            "notes": "Lunas",
+            "member": {
+                "id": 51,
+                "name": "Teguh Iman",
+                "member_number": "PTM-051",
+                "status": "active"
+            }
+        },
+        {
+            "id": 31,
+            "member_id": 55,
+            "period": "2026-06-01",
+            "amount": 25000,
+            "payment_date": "2026-06-04",
+            "status": "paid",
+            "notes": "Lunas",
+            "member": {
+                "id": 55,
+                "name": "Yolan M.",
+                "member_number": "PTM-055",
+                "status": "active"
+            }
+        },
+        {
+            "id": 32,
+            "member_id": 55,
+            "period": "2026-07-01",
+            "amount": 25000,
+            "payment_date": "2026-06-04",
+            "status": "paid",
+            "notes": "Lunas",
+            "member": {
+                "id": 55,
+                "name": "Yolan M.",
+                "member_number": "PTM-055",
+                "status": "active"
+            }
+        },
+        {
+            "id": 33,
+            "member_id": 55,
+            "period": "2026-08-01",
+            "amount": 25000,
+            "payment_date": "2026-06-04",
+            "status": "paid",
+            "notes": "Lunas",
+            "member": {
+                "id": 55,
+                "name": "Yolan M.",
+                "member_number": "PTM-055",
+                "status": "active"
+            }
+        },
+        {
+            "id": 34,
+            "member_id": 55,
+            "period": "2026-09-01",
+            "amount": 25000,
+            "payment_date": "2026-06-04",
+            "status": "paid",
+            "notes": "Lunas",
+            "member": {
+                "id": 55,
+                "name": "Yolan M.",
+                "member_number": "PTM-055",
+                "status": "active"
+            }
+        }
+    ]
+}
