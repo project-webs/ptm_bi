@@ -1,0 +1,194 @@
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 100px 20px 60px;
+  background: linear-gradient(135deg, var(--bg-primary) 0%, #1a1a2e 100%);
+}
+
+.login-card, .login-success-card {
+  background: rgba(30, 30, 46, 0.8);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 40px;
+  width: 100%;
+  max-width: 450px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.6s ease-out;
+}
+
+.login-success-card {
+  max-width: 800px;
+  text-align: center;
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.login-icon {
+  font-size: 3rem;
+  color: var(--accent-color);
+  margin-bottom: 15px;
+  filter: drop-shadow(0 0 10px rgba(0, 212, 255, 0.5));
+}
+
+.login-header h2 {
+  color: #fff;
+  font-size: 1.8rem;
+  margin-bottom: 10px;
+}
+
+.login-header p {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.error-alert {
+  background: rgba(255, 71, 87, 0.1);
+  border-left: 4px solid #ff4757;
+  color: #ff4757;
+  padding: 15px;
+  margin-bottom: 25px;
+  border-radius: 4px 8px 8px 4px;
+  font-size: 0.9rem;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  color: #fff;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.input-with-icon {
+  position: relative;
+}
+
+.input-with-icon i {
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-secondary);
+}
+
+.input-with-icon input {
+  width: 100%;
+  padding: 12px 15px 12px 45px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  color: #fff;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.input-with-icon input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+  background: rgba(0, 212, 255, 0.05);
+  box-shadow: 0 0 0 4px rgba(0, 212, 255, 0.1);
+}
+
+.login-submit-btn {
+  width: 100%;
+  padding: 14px;
+  background: var(--accent-color);
+  color: var(--bg-primary);
+  border: none;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+
+.login-submit-btn:hover:not(:disabled) {
+  background: #00b0d6;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0, 212, 255, 0.3);
+}
+
+.login-submit-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Success Card & Users List */
+.role-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  background: rgba(0, 212, 255, 0.1);
+  color: var(--accent-color);
+  border: 1px solid rgba(0, 212, 255, 0.2);
+}
+
+.role-badge.admin {
+  background: rgba(255, 71, 87, 0.1);
+  color: #ff4757;
+  border-color: rgba(255, 71, 87, 0.2);
+}
+
+.users-list-section {
+  margin-top: 40px;
+  text-align: left;
+}
+
+.users-list-section h3 {
+  color: #fff;
+  margin-bottom: 20px;
+  font-size: 1.3rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 10px;
+}
+
+.table-responsive {
+  overflow-x: auto;
+}
+
+.users-table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--text-secondary);
+}
+
+.users-table th, .users-table td {
+  padding: 12px 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  text-align: left;
+}
+
+.users-table th {
+  color: #fff;
+  font-weight: 600;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.users-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.error-msg {
+  color: #ff4757;
+  padding: 10px;
+  background: rgba(255, 71, 87, 0.1);
+  border-radius: 8px;
+}
