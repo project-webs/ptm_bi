@@ -124,7 +124,7 @@ const Persahabatan = () => {
     setSelectedMatchId(match.id);
     setMatchFormData({
       ptm_name: match.ptm_name || '',
-      match_date: match.match_date ? match.match_date.split(' ')[0] : '',
+      match_date: match.match_date ? match.match_date.split(/[T ]/)[0] : '',
       notes: match.notes || ''
     });
     setIsMatchModalOpen(true);
