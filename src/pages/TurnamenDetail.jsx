@@ -26,14 +26,26 @@ const TurnamenDetail = () => {
   const [playersPerGroup, setPlayersPerGroup] = useState('');
   const [genLoading, setGenLoading] = useState(false);
 
+  // Drag and Drop Seeding State
+  const [localParticipants, setLocalParticipants] = useState([]);
+  const [draggedIdx, setDraggedIdx] = useState(null);
+
   const token = localStorage.getItem('token');
 
   const fetchTournament = useCallback(async () => {
     try {
       const response = await fetch(`${API_URL}/tournaments/${slug}`, {
-        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+        headers: { 
+          'Authorization': token ? `Bearer ${token}` : '', 
+          'Accept': 'application/json' 
+        }
       });
-      if (!response.ok) throw new Error('Gagal memuat data turnamen');
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Akses ditolak: Anda harus login.');
+        }
+        throw new Error('Gagal memuat data turnamen');
+      }
       const data = await response.json();
       setTournament(data.data);
     } catch (err) {
@@ -44,7 +56,10 @@ const TurnamenDetail = () => {
   const fetchPlayers = useCallback(async () => {
     try {
       const response = await fetch(`${API_URL}/players?per_page=200`, {
-        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+        headers: { 
+          'Authorization': token ? `Bearer ${token}` : '', 
+          'Accept': 'application/json' 
+        }
       });
       if (response.ok) {
         const data = await response.json();
@@ -56,14 +71,74 @@ const TurnamenDetail = () => {
   }, [token]);
 
   useEffect(() => {
+    setTimeout(() => setLoading(true), 0);
+    const promises = [fetchTournament()];
     if (token) {
-      setTimeout(() => setLoading(true), 0);
-      Promise.all([fetchTournament(), fetchPlayers()]).finally(() => setLoading(false));
-    } else {
-      setError("Akses ditolak: Anda harus login.");
-      setLoading(false);
+      promises.push(fetchPlayers());
     }
+    Promise.all(promises).finally(() => setLoading(false));
   }, [token, fetchTournament, fetchPlayers]);
+
+  useEffect(() => {
+    if (tournament && tournament.participants) {
+      // Sort them by seed first if they have seeds, or preserve the order
+      const sorted = [...tournament.participants].sort((a, b) => {
+        if (a.seed && b.seed) return a.seed - b.seed;
+        if (a.seed) return -1;
+        if (b.seed) return 1;
+        return 0;
+      });
+      setLocalParticipants(sorted);
+    }
+  }, [tournament]);
+
+  const handleDragStart = (e, index) => {
+    setDraggedIdx(index);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e, index) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = async (e, targetIdx) => {
+    e.preventDefault();
+    if (draggedIdx === null || draggedIdx === targetIdx) return;
+
+    const reordered = [...localParticipants];
+    const [draggedItem] = reordered.splice(draggedIdx, 1);
+    reordered.splice(targetIdx, 0, draggedItem);
+
+    setLocalParticipants(reordered);
+    setDraggedIdx(null);
+
+    try {
+      const promises = reordered.map((p, idx) => {
+        const newSeed = idx + 1;
+        if (p.seed !== newSeed) {
+          return fetch(`${API_URL}/tournaments/${slug}/participants/${p.id}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify({ seed: newSeed })
+          });
+        }
+        return null;
+      }).filter(Boolean);
+
+      if (promises.length > 0) {
+        await Promise.all(promises);
+        fetchTournament();
+      }
+    } catch (err) {
+      console.error('Failed to update seeds:', err);
+      alert('Gagal menyimpan urutan seed.');
+      fetchTournament();
+    }
+  };
 
   const handleAddParticipant = async (e) => {
     e.preventDefault();
@@ -309,21 +384,27 @@ const TurnamenDetail = () => {
                   <h3 style={{ color: 'white', marginBottom: '8px' }}>Bracket Belum Di-generate</h3>
                   <p style={{ color: '#9ca3af', marginBottom: '24px' }}>Tambahkan minimal 2 peserta, lalu klik tombol di bawah untuk membuat bracket.</p>
                   
-                  {tournament.participants?.length >= 2 ? (
-                    <form onSubmit={handleStartTournament}>
-                      {tournament.type === 'round_robin' && (
-                        <div style={{ marginBottom: '16px', maxWidth: '300px', margin: '0 auto 16px' }}>
-                          <label style={{ display: 'block', color: '#a0aec0', marginBottom: '8px', fontSize: '13px' }}>Jumlah Pemain per Grup (Opsional)</label>
-                          <input type="number" min="2" value={playersPerGroup} onChange={e => setPlayersPerGroup(e.target.value)} placeholder="Misal: 4" style={{ width: '100%', padding: '10px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,212,255,0.3)', borderRadius: '8px', color: 'white' }} />
-                        </div>
-                      )}
-                      <button type="submit" disabled={genLoading} style={{ padding: '14px 32px', background: 'linear-gradient(135deg, #10b981, #059669)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '16px' }}>
-                        <i className="fa-solid fa-circle-play"></i> {genLoading ? 'Memproses...' : 'Generate Bracket & Mulai Turnamen'}
-                      </button>
-                    </form>
+                  {token ? (
+                    tournament.participants?.length >= 2 ? (
+                      <form onSubmit={handleStartTournament}>
+                        {tournament.type === 'round_robin' && (
+                          <div style={{ marginBottom: '16px', maxWidth: '300px', margin: '0 auto 16px' }}>
+                            <label style={{ display: 'block', color: '#a0aec0', marginBottom: '8px', fontSize: '13px' }}>Jumlah Pemain per Grup (Opsional)</label>
+                            <input type="number" min="2" value={playersPerGroup} onChange={e => setPlayersPerGroup(e.target.value)} placeholder="Misal: 4" style={{ width: '100%', padding: '10px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,212,255,0.3)', borderRadius: '8px', color: 'white' }} />
+                          </div>
+                        )}
+                        <button type="submit" disabled={genLoading} style={{ padding: '14px 32px', background: 'linear-gradient(135deg, #10b981, #059669)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '16px' }}>
+                          <i className="fa-solid fa-circle-play"></i> {genLoading ? 'Memproses...' : 'Generate Bracket & Mulai Turnamen'}
+                        </button>
+                      </form>
+                    ) : (
+                      <div style={{ display: 'inline-block', padding: '12px 24px', background: 'rgba(59,130,246,0.1)', color: '#3b82f6', border: '1px solid rgba(59,130,246,0.3)', borderRadius: '8px' }}>
+                        <i className="fa-solid fa-circle-info"></i> Tambahkan minimal 2 peserta terlebih dahulu
+                      </div>
+                    )
                   ) : (
-                    <div style={{ display: 'inline-block', padding: '12px 24px', background: 'rgba(59,130,246,0.1)', color: '#3b82f6', border: '1px solid rgba(59,130,246,0.3)', borderRadius: '8px' }}>
-                      <i className="fa-solid fa-circle-info"></i> Tambahkan minimal 2 peserta terlebih dahulu
+                    <div style={{ display: 'inline-block', padding: '12px 24px', background: 'rgba(255,193,7,0.1)', color: '#ffc107', border: '1px solid rgba(255,193,7,0.3)', borderRadius: '8px' }}>
+                      <i className="fa-solid fa-circle-info"></i> Turnamen belum dimulai / bracket belum di-generate oleh admin.
                     </div>
                   )}
                 </div>
@@ -345,7 +426,7 @@ const TurnamenDetail = () => {
                               <div style={{ display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'space-around', gap: '20px' }}>
                                 {matches.sort((a,b)=>a.match_number - b.match_number).map(match => {
                                   const isFinal = match.bracket === 'final';
-                                  const canClick = !match.is_bye && match.participant1_id && match.participant2_id && match.status !== 'finished';
+                                  const canClick = token && !match.is_bye && match.participant1_id && match.participant2_id && match.status !== 'finished';
                                   return (
                                     <div key={match.id} style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1 }}>
                                       {/* Connector Line to next round */}
@@ -392,26 +473,36 @@ const TurnamenDetail = () => {
                   )}
 
                   {/* Third Place Match */}
-                  {tournament.type === 'single_elimination' && thirdPlaceMatch && (
-                    <div style={{ marginTop: '30px' }}>
-                      <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#9ca3af', textTransform: 'uppercase', marginBottom: '16px' }}>🥉 Perebutan Juara 3</div>
-                      <div 
-                        onClick={() => (!thirdPlaceMatch.is_bye && thirdPlaceMatch.participant1_id && thirdPlaceMatch.participant2_id && thirdPlaceMatch.status !== 'finished') && openScoreModal(thirdPlaceMatch)}
-                        style={{ background: 'rgba(0,0,0,0.3)', border: '2px solid rgba(168,85,247,0.3)', borderRadius: '8px', width: '220px', cursor: 'pointer', overflow: 'hidden' }}
-                        className="match-card hoverable"
-                      >
-                        <div style={{ background: 'linear-gradient(90deg, #a855f7, #6366f1)', color: 'white', fontSize: '10px', fontWeight: 'bold', textAlign: 'center', padding: '4px', textTransform: 'uppercase' }}>🥉 Juara 3</div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                          <span style={{ fontSize: '13px', color: thirdPlaceMatch.winner_id === thirdPlaceMatch.participant1_id ? '#10b981' : thirdPlaceMatch.winner_id ? '#6b7280' : 'white' }}>{thirdPlaceMatch.player1_name || 'TBD'}</span>
-                          {thirdPlaceMatch.status === 'finished' && <span style={{ fontSize: '14px', fontWeight: 'bold', color: thirdPlaceMatch.winner_id === thirdPlaceMatch.participant1_id ? '#10b981' : '#6b7280' }}>{thirdPlaceMatch.score1}</span>}
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px' }}>
-                          <span style={{ fontSize: '13px', color: thirdPlaceMatch.winner_id === thirdPlaceMatch.participant2_id ? '#10b981' : thirdPlaceMatch.winner_id ? '#6b7280' : 'white' }}>{thirdPlaceMatch.player2_name || 'TBD'}</span>
-                          {thirdPlaceMatch.status === 'finished' && <span style={{ fontSize: '14px', fontWeight: 'bold', color: thirdPlaceMatch.winner_id === thirdPlaceMatch.participant2_id ? '#10b981' : '#6b7280' }}>{thirdPlaceMatch.score2}</span>}
+                  {tournament.type === 'single_elimination' && thirdPlaceMatch && (() => {
+                    const canClickThird = token && !thirdPlaceMatch.is_bye && thirdPlaceMatch.participant1_id && thirdPlaceMatch.participant2_id && thirdPlaceMatch.status !== 'finished';
+                    return (
+                      <div style={{ marginTop: '30px' }}>
+                        <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#9ca3af', textTransform: 'uppercase', marginBottom: '16px' }}>🥉 Perebutan Juara 3</div>
+                        <div 
+                          onClick={() => canClickThird && openScoreModal(thirdPlaceMatch)}
+                          style={{ 
+                            background: 'rgba(0,0,0,0.3)', 
+                            border: '2px solid rgba(168,85,247,0.3)', 
+                            borderRadius: '8px', 
+                            width: '220px', 
+                            cursor: canClickThird ? 'pointer' : 'default', 
+                            overflow: 'hidden' 
+                          }}
+                          className={canClickThird ? "match-card hoverable" : "match-card"}
+                        >
+                          <div style={{ background: 'linear-gradient(90deg, #a855f7, #6366f1)', color: 'white', fontSize: '10px', fontWeight: 'bold', textAlign: 'center', padding: '4px', textTransform: 'uppercase' }}>🥉 Juara 3</div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                            <span style={{ fontSize: '13px', color: thirdPlaceMatch.winner_id === thirdPlaceMatch.participant1_id ? '#10b981' : thirdPlaceMatch.winner_id ? '#6b7280' : 'white' }}>{thirdPlaceMatch.player1_name || 'TBD'}</span>
+                            {thirdPlaceMatch.status === 'finished' && <span style={{ fontSize: '14px', fontWeight: 'bold', color: thirdPlaceMatch.winner_id === thirdPlaceMatch.participant1_id ? '#10b981' : '#6b7280' }}>{thirdPlaceMatch.score1}</span>}
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px' }}>
+                            <span style={{ fontSize: '13px', color: thirdPlaceMatch.winner_id === thirdPlaceMatch.participant2_id ? '#10b981' : thirdPlaceMatch.winner_id ? '#6b7280' : 'white' }}>{thirdPlaceMatch.player2_name || 'TBD'}</span>
+                            {thirdPlaceMatch.status === 'finished' && <span style={{ fontSize: '14px', fontWeight: 'bold', color: thirdPlaceMatch.winner_id === thirdPlaceMatch.participant2_id ? '#10b981' : '#6b7280' }}>{thirdPlaceMatch.score2}</span>}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
 
                   {/* ROUND ROBIN STANDINGS AND MATCHES */}
                   {tournament.type === 'round_robin' && (
@@ -498,7 +589,7 @@ const TurnamenDetail = () => {
                                   </div>
                                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
                                     {matches.map(match => {
-                                      const canClick = !match.is_bye && match.participant1_id && match.participant2_id && match.status !== 'finished';
+                                      const canClick = token && !match.is_bye && match.participant1_id && match.participant2_id && match.status !== 'finished';
                                       return (
                                         <div key={match.id} 
                                           onClick={() => canClick && openScoreModal(match)}
@@ -538,12 +629,14 @@ const TurnamenDetail = () => {
                     </div>
                   )}
 
-                  <div style={{ marginTop: '30px', paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                    <button onClick={handleResetBracket} style={{ padding: '8px 16px', background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '6px', cursor: 'pointer' }}>
-                      <i className="fa-solid fa-rotate-left"></i> Reset Bracket
-                    </button>
-                    <small style={{ display: 'block', color: '#6b7280', marginTop: '8px' }}>*Hati-hati: Menghapus semua hasil pertandingan</small>
-                  </div>
+                  {token && (
+                    <div style={{ marginTop: '30px', paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                      <button onClick={handleResetBracket} style={{ padding: '8px 16px', background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '6px', cursor: 'pointer' }}>
+                        <i className="fa-solid fa-rotate-left"></i> Reset Bracket
+                      </button>
+                      <small style={{ display: 'block', color: '#6b7280', marginTop: '8px' }}>*Hati-hati: Menghapus semua hasil pertandingan</small>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -557,7 +650,7 @@ const TurnamenDetail = () => {
                 <div style={{ color: '#00d4ff', fontWeight: 'bold' }}>Total: {tournament.participants?.length || 0}</div>
               </div>
 
-              {tournament.status === 'pending' && (
+              {token && tournament.status === 'pending' && (
                 <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,212,255,0.2)', borderRadius: '12px', padding: '16px', marginBottom: '24px' }}>
                   <h3 style={{ color: '#00d4ff', fontSize: '1rem', marginBottom: '12px' }}><i className="fa-solid fa-user-plus"></i> Tambah Peserta</h3>
                   <form onSubmit={handleAddParticipant} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -588,24 +681,58 @@ const TurnamenDetail = () => {
                 </div>
               )}
 
-              {tournament.participants?.length > 0 ? (
+              {localParticipants?.length > 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {tournament.participants.map((p, idx) => (
-                    <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.02)', padding: '12px 16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <div style={{ width: '28px', height: '28px', background: 'rgba(0,212,255,0.1)', color: '#00d4ff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold' }}>{idx + 1}</div>
-                        <div>
-                          <div style={{ color: 'white', fontWeight: 'bold' }}>{p.name}</div>
-                          {p.player && <div style={{ color: '#9ca3af', fontSize: '12px' }}>ITR: {p.player.itr_rating} | Div: {p.player.division || '-'}</div>}
+                  {localParticipants.map((p, idx) => {
+                    const isPendingAdmin = token && tournament.status === 'pending';
+                    return (
+                      <div 
+                        key={p.id} 
+                        draggable={isPendingAdmin}
+                        onDragStart={(e) => handleDragStart(e, idx)}
+                        onDragOver={(e) => handleDragOver(e, idx)}
+                        onDrop={(e) => handleDrop(e, idx)}
+                        onDragEnd={() => setDraggedIdx(null)}
+                        style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'space-between', 
+                          background: draggedIdx === idx ? 'rgba(0, 212, 255, 0.1)' : 'rgba(255,255,255,0.02)', 
+                          padding: '12px 16px', 
+                          borderRadius: '8px', 
+                          border: draggedIdx === idx ? '1px solid #00d4ff' : '1px solid rgba(255,255,255,0.05)',
+                          cursor: isPendingAdmin ? 'grab' : 'default',
+                          opacity: draggedIdx === idx ? 0.5 : 1,
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          {isPendingAdmin && (
+                            <i className="fa-solid fa-grip-lines" style={{ color: '#4b5563', cursor: 'grab', marginRight: '4px' }}></i>
+                          )}
+                          <div style={{ width: '28px', height: '28px', background: 'rgba(0,212,255,0.1)', color: '#00d4ff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold' }}>
+                            {idx + 1}
+                          </div>
+                          <div>
+                            <div style={{ color: 'white', fontWeight: 'bold' }}>
+                              {p.name}
+                              {tournament.seeded && p.seed && (
+                                <span style={{ marginLeft: '8px', background: 'rgba(16,185,129,0.2)', color: '#10b981', padding: '2px 6px', borderRadius: '4px', fontSize: '10px' }}>
+                                  Seed {p.seed}
+                                </span>
+                              )}
+                            </div>
+                            {p.player && <div style={{ color: '#9ca3af', fontSize: '12px' }}>ITR: {p.player.itr_rating} | Div: {p.player.division || '-'}</div>}
+                          </div>
                         </div>
+                        {isPendingAdmin && (
+                          <button onClick={() => handleDeleteParticipant(p.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '8px' }}>
+                            <i className="fa-solid fa-trash"></i>
+                          </button>
+                        )}
                       </div>
-                      {tournament.status === 'pending' && (
-                        <button onClick={() => handleDeleteParticipant(p.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '8px' }}>
-                          <i className="fa-solid fa-trash"></i>
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div style={{ textAlign: 'center', color: '#9ca3af', padding: '20px' }}>Belum ada peserta.</div>
@@ -635,11 +762,15 @@ const TurnamenDetail = () => {
               <span style={{ color: 'white', fontWeight: 'bold' }}>{tournament.participants?.length || 0} Orang</span>
             </div>
             {tournament.type === 'single_elimination' && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', fontSize: '13px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.1)', fontSize: '13px' }}>
                 <span style={{ color: '#9ca3af' }}>Perebutan Juara 3</span>
                 <span style={{ color: 'white', fontWeight: 'bold' }}>{tournament.third_place_match ? 'Ya' : 'Tidak'}</span>
               </div>
             )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', fontSize: '13px' }}>
+              <span style={{ color: '#9ca3af' }}>Gunakan Seed</span>
+              <span style={{ color: 'white', fontWeight: 'bold' }}>{tournament.seeded ? 'Ya' : 'Tidak'}</span>
+            </div>
             
             {tournament.description && (
               <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>

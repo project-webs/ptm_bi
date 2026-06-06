@@ -40,6 +40,7 @@ function App() {
             <Route path="/proyek" element={<Proyek />} />
             <Route path="/turnamen" element={<Turnamen />} />
             <Route path="/manajemen-turnamen" element={<ManajemenTurnamen />} />
+            <Route path="/manajemen-turnamen/:slug" element={<TurnamenDetail />} />
             <Route path="/turnamen/:slug" element={<TurnamenDetail />} />
             <Route path="/persahabatan" element={<Persahabatan />} />
             <Route path="/venue" element={<Venue />} />

@@ -17,7 +17,8 @@ const ManajemenTurnamen = () => {
     type: 'single_elimination',
     start_date: '',
     end_date: '',
-    third_place_match: true
+    third_place_match: true,
+    seeded: false
   });
   const [formLoading, setFormLoading] = useState(false);
 
@@ -62,7 +63,8 @@ const ManajemenTurnamen = () => {
         type: tournament.type || 'single_elimination',
         start_date: tournament.start_date ? tournament.start_date.split('T')[0] : '',
         end_date: tournament.end_date ? tournament.end_date.split('T')[0] : '',
-        third_place_match: tournament.third_place_match !== false
+        third_place_match: tournament.third_place_match !== false,
+        seeded: tournament.seeded === true
       });
     } else {
       setEditingId(null);
@@ -72,7 +74,8 @@ const ManajemenTurnamen = () => {
         type: 'single_elimination',
         start_date: '',
         end_date: '',
-        third_place_match: true
+        third_place_match: true,
+        seeded: false
       });
     }
     setIsModalOpen(true);
@@ -256,7 +259,7 @@ const ManajemenTurnamen = () => {
           {tournaments.map(tournament => (
             <div 
               key={tournament.id} 
-              onClick={() => navigate(`/manajemen-turnamen/${tournament.slug}`)}
+              onClick={() => navigate(`/turnamen/${tournament.slug}`)}
               className="glass"
               style={{ padding: '1.5rem', borderRadius: '16px', cursor: 'pointer', transition: 'all 0.3s ease', position: 'relative', overflow: 'hidden' }}
               onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-5px)'; e.currentTarget.style.boxShadow = '0 10px 25px rgba(0, 212, 255, 0.2)'; }}
@@ -305,7 +308,7 @@ const ManajemenTurnamen = () => {
               {token && (
                 <div style={{ display: 'flex', gap: '8px', marginTop: '1.5rem' }} onClick={e => e.stopPropagation()}>
                   <button 
-                    onClick={() => navigate(`/manajemen-turnamen/${tournament.slug}`)}
+                    onClick={() => navigate(`/turnamen/${tournament.slug}`)}
                     style={{ flex: 1, padding: '8px', background: 'rgba(0, 212, 255, 0.1)', color: '#00d4ff', border: '1px solid rgba(0, 212, 255, 0.3)', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
                   >
                     <i className="fa-solid fa-eye"></i> Bracket
@@ -379,16 +382,46 @@ const ManajemenTurnamen = () => {
                   style={{ width: '100%', padding: '10px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white', resize: 'vertical' }}
                 ></textarea>
               </div>
-              {formData.type === 'single_elimination' && (
-                <div style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <input 
-                    type="checkbox" name="third_place_match" id="third_place_match"
-                    checked={formData.third_place_match} onChange={handleInputChange}
-                    style={{ width: '18px', height: '18px' }}
-                  />
-                  <label htmlFor="third_place_match" style={{ color: '#a0aec0' }}>Buat pertandingan perebutan Juara 3</label>
+              {/* OPSI TAMBAHAN */}
+              <div style={{ marginTop: '1.5rem', marginBottom: '1.5rem' }}>
+                <h4 style={{ color: '#9ca3af', fontSize: '11px', fontWeight: 'bold', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '1.25rem' }}>
+                  Opsi Tambahan
+                </h4>
+                
+                {formData.type === 'single_elimination' && (
+                  <div className="toggle-switch-container">
+                    <label className="toggle-switch">
+                      <input 
+                        type="checkbox" 
+                        name="third_place_match" 
+                        checked={formData.third_place_match} 
+                        onChange={handleInputChange}
+                      />
+                      <span className="toggle-slider"></span>
+                    </label>
+                    <div>
+                      <div style={{ color: 'white', fontWeight: 600, fontSize: '14px' }}>Pertandingan Perebutan Juara 3</div>
+                      <div style={{ color: '#9ca3af', fontSize: '12px', marginTop: '2px' }}>Semifinal losers bermain untuk posisi 3</div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="toggle-switch-container">
+                  <label className="toggle-switch">
+                    <input 
+                      type="checkbox" 
+                      name="seeded" 
+                      checked={formData.seeded} 
+                      onChange={handleInputChange}
+                    />
+                    <span className="toggle-slider"></span>
+                  </label>
+                  <div>
+                    <div style={{ color: 'white', fontWeight: 600, fontSize: '14px' }}>Gunakan Seed</div>
+                    <div style={{ color: '#9ca3af', fontSize: '12px', marginTop: '2px' }}>Peserta diurutkan berdasarkan nomor seed</div>
+                  </div>
                 </div>
-              )}
+              </div>
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '1rem' }}>
                 <button type="button" onClick={handleCloseModal} style={{ padding: '10px 20px', background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: 'white', borderRadius: '8px', cursor: 'pointer' }}>Batal</button>
                 <button type="submit" disabled={formLoading} style={{ padding: '10px 20px', background: '#00d4ff', border: 'none', color: 'black', fontWeight: 'bold', borderRadius: '8px', cursor: formLoading ? 'not-allowed' : 'pointer', opacity: formLoading ? 0.7 : 1 }}>{formLoading ? 'Menyimpan...' : 'Simpan'}</button>
