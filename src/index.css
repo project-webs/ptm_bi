@@ -317,3 +317,7 @@ section {
   transform: translateX(20px);
   background-color: white;
 }
+
+.table-row-hover:hover {
+  background: rgba(255, 255, 255, 0.04) !important;
+}
