@@ -333,6 +333,22 @@ const TurnamenDetail = () => {
     return tournament.matches.find(m => m.bracket === 'third_place');
   }, [tournament]);
 
+  const champion = useMemo(() => {
+    if (!tournament || !tournament.matches || tournament.type !== 'single_elimination' || tournament.status !== 'finished') return null;
+    const finalMatch = tournament.matches.find(m => m.bracket === 'final');
+    if (!finalMatch || !finalMatch.winner_id) return null;
+    return finalMatch.winner_id === finalMatch.participant1_id ? finalMatch.player1_name : finalMatch.player2_name;
+  }, [tournament]);
+
+  const progress = useMemo(() => {
+    if (!tournament || !tournament.matches || tournament.status === 'pending') return null;
+    const matches = tournament.matches.filter(m => m.bracket !== 'third_place' && !m.is_bye);
+    const total = matches.length;
+    const done = matches.filter(m => m.status === 'finished').length;
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+    return { total, done, pct };
+  }, [tournament]);
+
 
   if (loading) return <div style={{ paddingTop: '150px', textAlign: 'center', color: '#00d4ff' }}><i className="fa-solid fa-spinner fa-spin fa-3x"></i></div>;
   if (error) return <div style={{ paddingTop: '150px', textAlign: 'center', color: '#ef4444' }}>{error}</div>;
@@ -410,6 +426,15 @@ const TurnamenDetail = () => {
                 </div>
               ) : (
                 <div>
+                  {/* CHAMPION BANNER */}
+                  {champion && (
+                    <div style={{ background: 'linear-gradient(135deg, rgba(26,39,68,0.4), rgba(30,26,46,0.4))', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '16px', padding: '20px', textAlign: 'center', marginBottom: '20px', boxShadow: '0 0 40px rgba(245,158,11,0.1)' }}>
+                      <div style={{ fontSize: '40px', marginBottom: '8px' }}>🏆</div>
+                      <div style={{ fontSize: '11px', fontWeight: 'bold', letterSpacing: '1px', textTransform: 'uppercase', color: '#f59e0b', marginBottom: '6px' }}>🥇 Juara 1</div>
+                      <div style={{ fontSize: '24px', fontWeight: 800, color: 'white' }}>{champion}</div>
+                    </div>
+                  )}
+
                   {/* SINGLE ELIMINATION BRACKET */}
                   {tournament.type === 'single_elimination' && (
                     <div style={{ overflowX: 'auto', paddingBottom: '20px' }}>
@@ -418,7 +443,19 @@ const TurnamenDetail = () => {
                           const round = parseInt(roundStr);
                           const matches = matchesByRound[round];
                           const isLast = rIdx === arr.length - 1;
-                          const label = matches.length === 1 && isLast ? 'Final' : matches.length === 2 ? 'Semifinal' : `Babak ${round}`;
+                          
+                          let label = `Babak ${round}`;
+                          if (matches.length === 1 && isLast) {
+                            label = 'Final';
+                          } else if (matches.length === 2 && isLast) {
+                            label = 'Semifinal';
+                          } else if (matches.length === 1) {
+                            label = 'Final';
+                          } else if (matches.length === 2) {
+                            label = 'Semifinal';
+                          } else if (matches.length === 4) {
+                            label = 'Perempat Final';
+                          }
                           
                           return (
                             <div key={round} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-around', minWidth: '220px', position: 'relative' }}>
@@ -426,7 +463,7 @@ const TurnamenDetail = () => {
                               <div style={{ display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'space-around', gap: '20px' }}>
                                 {matches.sort((a,b)=>a.match_number - b.match_number).map(match => {
                                   const isFinal = match.bracket === 'final';
-                                  const canClick = token && !match.is_bye && match.participant1_id && match.participant2_id && match.status !== 'finished';
+                                  const canClick = token && !match.is_bye && match.participant1_id && match.participant2_id && !match.is_rating_processed;
                                   return (
                                     <div key={match.id} style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1 }}>
                                       {/* Connector Line to next round */}
@@ -446,20 +483,45 @@ const TurnamenDetail = () => {
                                         <div style={{ position: 'absolute', top: '4px', right: '6px', fontSize: '10px', color: '#6b7280', fontWeight: 'bold' }}>#{match.match_number}</div>
                                         
                                         {/* Player 1 */}
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                          <span style={{ fontSize: '13px', color: match.winner_id === match.participant1_id ? '#10b981' : match.winner_id ? '#6b7280' : 'white', fontWeight: match.winner_id === match.participant1_id ? 'bold' : 'normal', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)', minHeight: '42px' }}>
+                                          <span style={{ fontSize: '13px', color: match.winner_id === match.participant1_id ? '#10b981' : match.winner_id ? '#6b7280' : 'white', fontWeight: match.winner_id === match.participant1_id ? 'bold' : 'normal', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
                                             {match.player1_name || (match.is_bye ? 'BYE' : 'TBD')}
+                                            {match.winner_id === match.participant1_id && (
+                                              <i className="fa-solid fa-crown" style={{ color: '#f59e0b', fontSize: '11px', marginLeft: '4px' }}></i>
+                                            )}
                                           </span>
                                           {match.status === 'finished' && !match.is_bye && <span style={{ fontSize: '14px', fontWeight: 'bold', color: match.winner_id === match.participant1_id ? '#10b981' : '#6b7280' }}>{match.score1}</span>}
                                         </div>
                                         
                                         {/* Player 2 */}
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px' }}>
-                                          <span style={{ fontSize: '13px', color: match.winner_id === match.participant2_id ? '#10b981' : match.winner_id ? '#6b7280' : 'white', fontWeight: match.winner_id === match.participant2_id ? 'bold' : 'normal', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', minHeight: '42px' }}>
+                                          <span style={{ fontSize: '13px', color: match.winner_id === match.participant2_id ? '#10b981' : match.winner_id ? '#6b7280' : 'white', fontWeight: match.winner_id === match.participant2_id ? 'bold' : 'normal', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
                                             {match.player2_name || 'TBD'}
+                                            {match.winner_id === match.participant2_id && (
+                                              <i className="fa-solid fa-crown" style={{ color: '#f59e0b', fontSize: '11px', marginLeft: '4px' }}></i>
+                                            )}
                                           </span>
                                           {match.status === 'finished' && !match.is_bye && <span style={{ fontSize: '14px', fontWeight: 'bold', color: match.winner_id === match.participant2_id ? '#10b981' : '#6b7280' }}>{match.score2}</span>}
                                         </div>
+
+                                        {/* Point History */}
+                                        {match.status === 'finished' && match.point_history && Array.isArray(match.point_history) && match.point_history.length > 0 && (
+                                          <div style={{ fontSize: '10px', color: '#9ca3af', textAlign: 'center', padding: '5px 8px', borderTop: '1px dashed rgba(255,255,255,0.1)', fontFamily: 'monospace', letterSpacing: '0.5px' }}>
+                                            {match.point_history.map((pts, idx) => (
+                                              <span key={idx}>
+                                                {pts.p1 ?? 0}-{pts.p2 ?? 0}
+                                                {idx < match.point_history.length - 1 ? ', ' : ''}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        )}
+
+                                        {/* Bottom Score Edit Bar */}
+                                        {canClick && (
+                                          <div style={{ textAlign: 'center', padding: '6px', background: match.status === 'finished' ? 'rgba(255,255,255,0.02)' : 'rgba(0, 212, 255, 0.1)', fontSize: '11px', color: match.status === 'finished' ? '#9ca3af' : '#00d4ff', fontWeight: 600, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                                            <i className="fa-solid fa-pen"></i> {match.status === 'finished' ? 'Edit skor' : 'Input skor'}
+                                          </div>
+                                        )}
                                       </div>
                                     </div>
                                   )
@@ -474,31 +536,74 @@ const TurnamenDetail = () => {
 
                   {/* Third Place Match */}
                   {tournament.type === 'single_elimination' && thirdPlaceMatch && (() => {
-                    const canClickThird = token && !thirdPlaceMatch.is_bye && thirdPlaceMatch.participant1_id && thirdPlaceMatch.participant2_id && thirdPlaceMatch.status !== 'finished';
+                    const canClickThird = token && !thirdPlaceMatch.is_bye && thirdPlaceMatch.participant1_id && thirdPlaceMatch.participant2_id && !thirdPlaceMatch.is_rating_processed;
                     return (
                       <div style={{ marginTop: '30px' }}>
-                        <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#9ca3af', textTransform: 'uppercase', marginBottom: '16px' }}>🥉 Perebutan Juara 3</div>
-                        <div 
-                          onClick={() => canClickThird && openScoreModal(thirdPlaceMatch)}
-                          style={{ 
-                            background: 'rgba(0,0,0,0.3)', 
-                            border: '2px solid rgba(168,85,247,0.3)', 
-                            borderRadius: '8px', 
-                            width: '220px', 
-                            cursor: canClickThird ? 'pointer' : 'default', 
-                            overflow: 'hidden' 
-                          }}
-                          className={canClickThird ? "match-card hoverable" : "match-card"}
-                        >
-                          <div style={{ background: 'linear-gradient(90deg, #a855f7, #6366f1)', color: 'white', fontSize: '10px', fontWeight: 'bold', textAlign: 'center', padding: '4px', textTransform: 'uppercase' }}>🥉 Juara 3</div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                            <span style={{ fontSize: '13px', color: thirdPlaceMatch.winner_id === thirdPlaceMatch.participant1_id ? '#10b981' : thirdPlaceMatch.winner_id ? '#6b7280' : 'white' }}>{thirdPlaceMatch.player1_name || 'TBD'}</span>
-                            {thirdPlaceMatch.status === 'finished' && <span style={{ fontSize: '14px', fontWeight: 'bold', color: thirdPlaceMatch.winner_id === thirdPlaceMatch.participant1_id ? '#10b981' : '#6b7280' }}>{thirdPlaceMatch.score1}</span>}
+                        <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#9ca3af', textTransform: 'uppercase', marginBottom: '16px' }}></div>
+                        <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+                          <div>
+                            <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#9ca3af', textTransform: 'uppercase', marginBottom: '12px' }}>🥉 Perebutan Juara 3</div>
+                            <div 
+                              onClick={() => canClickThird && openScoreModal(thirdPlaceMatch)}
+                              style={{ 
+                                background: 'rgba(0,0,0,0.3)', 
+                                border: '2px solid rgba(168,85,247,0.3)', 
+                                borderRadius: '8px', 
+                                width: '220px', 
+                                cursor: canClickThird ? 'pointer' : 'default', 
+                                overflow: 'hidden' 
+                              }}
+                              className={canClickThird ? "match-card hoverable" : "match-card"}
+                            >
+                              <div style={{ background: 'linear-gradient(90deg, #a855f7, #6366f1)', color: 'white', fontSize: '10px', fontWeight: 'bold', textAlign: 'center', padding: '4px', textTransform: 'uppercase' }}>🥉 Juara 3</div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)', minHeight: '42px' }}>
+                                <span style={{ fontSize: '13px', color: thirdPlaceMatch.winner_id === thirdPlaceMatch.participant1_id ? '#10b981' : thirdPlaceMatch.winner_id ? '#6b7280' : 'white', fontWeight: thirdPlaceMatch.winner_id === thirdPlaceMatch.participant1_id ? 'bold' : 'normal', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {thirdPlaceMatch.player1_name || 'TBD'}
+                                  {thirdPlaceMatch.winner_id === thirdPlaceMatch.participant1_id && (
+                                    <i className="fa-solid fa-crown" style={{ color: '#f59e0b', fontSize: '11px', marginLeft: '4px' }}></i>
+                                  )}
+                                </span>
+                                {thirdPlaceMatch.status === 'finished' && <span style={{ fontSize: '14px', fontWeight: 'bold', color: thirdPlaceMatch.winner_id === thirdPlaceMatch.participant1_id ? '#10b981' : '#6b7280' }}>{thirdPlaceMatch.score1}</span>}
+                              </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', minHeight: '42px' }}>
+                                <span style={{ fontSize: '13px', color: thirdPlaceMatch.winner_id === thirdPlaceMatch.participant2_id ? '#10b981' : thirdPlaceMatch.winner_id ? '#6b7280' : 'white', fontWeight: thirdPlaceMatch.winner_id === thirdPlaceMatch.participant2_id ? 'bold' : 'normal', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {thirdPlaceMatch.player2_name || 'TBD'}
+                                  {thirdPlaceMatch.winner_id === thirdPlaceMatch.participant2_id && (
+                                    <i className="fa-solid fa-crown" style={{ color: '#f59e0b', fontSize: '11px', marginLeft: '4px' }}></i>
+                                  )}
+                                </span>
+                                {thirdPlaceMatch.status === 'finished' && <span style={{ fontSize: '14px', fontWeight: 'bold', color: thirdPlaceMatch.winner_id === thirdPlaceMatch.participant2_id ? '#10b981' : '#6b7280' }}>{thirdPlaceMatch.score2}</span>}
+                              </div>
+
+                              {/* Point History */}
+                              {thirdPlaceMatch.status === 'finished' && thirdPlaceMatch.point_history && Array.isArray(thirdPlaceMatch.point_history) && thirdPlaceMatch.point_history.length > 0 && (
+                                <div style={{ fontSize: '10px', color: '#9ca3af', textAlign: 'center', padding: '5px 8px', borderTop: '1px dashed rgba(255,255,255,0.1)', fontFamily: 'monospace', letterSpacing: '0.5px' }}>
+                                  {thirdPlaceMatch.point_history.map((pts, idx) => (
+                                    <span key={idx}>
+                                      {pts.p1 ?? 0}-{pts.p2 ?? 0}
+                                      {idx < thirdPlaceMatch.point_history.length - 1 ? ', ' : ''}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+
+                              {/* Bottom Score Edit Bar */}
+                              {canClickThird && (
+                                <div style={{ textAlign: 'center', padding: '6px', background: thirdPlaceMatch.status === 'finished' ? 'rgba(255,255,255,0.02)' : 'rgba(168, 85, 247, 0.1)', fontSize: '11px', color: thirdPlaceMatch.status === 'finished' ? '#9ca3af' : '#a855f7', fontWeight: 600, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                                  <i className="fa-solid fa-pen"></i> {thirdPlaceMatch.status === 'finished' ? 'Edit skor' : 'Input skor'}
+                                </div>
+                              )}
+                            </div>
                           </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px' }}>
-                            <span style={{ fontSize: '13px', color: thirdPlaceMatch.winner_id === thirdPlaceMatch.participant2_id ? '#10b981' : thirdPlaceMatch.winner_id ? '#6b7280' : 'white' }}>{thirdPlaceMatch.player2_name || 'TBD'}</span>
-                            {thirdPlaceMatch.status === 'finished' && <span style={{ fontSize: '14px', fontWeight: 'bold', color: thirdPlaceMatch.winner_id === thirdPlaceMatch.participant2_id ? '#10b981' : '#6b7280' }}>{thirdPlaceMatch.score2}</span>}
-                          </div>
+
+                          {thirdPlaceMatch.winner_id && (
+                            <div style={{ padding: '16px 20px', background: 'rgba(168, 85, 247, 0.1)', border: '1px solid rgba(168, 85, 247, 0.3)', borderRadius: '8px', marginTop: '20px' }}>
+                              <div style={{ fontSize: '11px', color: '#a855f7', fontWeight: 'bold', letterSpacing: '0.5px' }}>🥉 JUARA 3</div>
+                              <div style={{ fontSize: '16px', fontWeight: 800, marginTop: '4px', color: 'white' }}>
+                                {thirdPlaceMatch.winner_id === thirdPlaceMatch.participant1_id ? thirdPlaceMatch.player1_name : thirdPlaceMatch.player2_name}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
@@ -779,6 +884,20 @@ const TurnamenDetail = () => {
               </div>
             )}
           </div>
+
+          {tournament.status !== 'pending' && progress && (
+            <div className="glass" style={{ padding: '20px', borderRadius: '16px', marginTop: '16px', position: 'sticky', top: '350px' }}>
+              <h3 style={{ fontSize: '13px', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '14px' }}>📊 Progress</h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '8px' }}>
+                <span style={{ color: '#9ca3af' }}>Match Selesai</span>
+                <span style={{ fontWeight: 'bold', color: 'white' }}>{progress.done}/{progress.total}</span>
+              </div>
+              <div style={{ height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '100px', overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${progress.pct}%`, background: 'linear-gradient(90deg, #00d4ff, #10b981)', borderRadius: '100px', transition: 'width 0.5s ease' }}></div>
+              </div>
+              <div style={{ textAlign: 'right', fontSize: '12px', color: '#9ca3af', marginTop: '6px' }}>{progress.pct}%</div>
+            </div>
+          )}
         </div>
       </div>
 
