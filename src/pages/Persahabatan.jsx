@@ -89,9 +89,16 @@ const Persahabatan = () => {
           ...(token && { 'Authorization': `Bearer ${token}` })
         }
       });
-      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      if (!res.ok) {
+        let errMsg = `HTTP error! status: ${res.status}`;
+        try {
+          const err = await res.json();
+          errMsg = err.message || errMsg;
+        } catch (_) {}
+        throw new Error(errMsg);
+      }
       const json = await res.json();
-      setViewedMatch(json.data || null);
+      setViewedMatch(json.data || (json && json.id ? json : null));
     } catch (err) {
       alert("Gagal memuat detail partai: " + err.message);
     }
@@ -150,8 +157,12 @@ const Persahabatan = () => {
       });
 
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Terjadi kesalahan saat menyimpan data');
+        let errMsg = 'Terjadi kesalahan saat menyimpan data';
+        try {
+          const err = await res.json();
+          errMsg = err.message || errMsg;
+        } catch (_) {}
+        throw new Error(errMsg);
       }
 
       setIsMatchModalOpen(false);
@@ -171,7 +182,14 @@ const Persahabatan = () => {
         method: 'DELETE',
         headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token}` }
       });
-      if (!res.ok) throw new Error('Gagal menghapus data');
+      if (!res.ok) {
+        let errMsg = 'Gagal menghapus data';
+        try {
+          const err = await res.json();
+          errMsg = err.message || errMsg;
+        } catch (_) {}
+        throw new Error(errMsg);
+      }
       fetchMatches();
     } catch (err) {
       alert(err.message);
@@ -232,7 +250,14 @@ const Persahabatan = () => {
         body: JSON.stringify(payload)
       });
 
-      if (!res.ok) throw new Error('Terjadi kesalahan saat menyimpan partai');
+      if (!res.ok) {
+        let errMsg = 'Terjadi kesalahan saat menyimpan partai';
+        try {
+          const err = await res.json();
+          errMsg = err.message || errMsg;
+        } catch (_) {}
+        throw new Error(errMsg);
+      }
 
       setGameModalMode('add');
       setGameFormData({ player_id: '', opponent_name: '', score_home: 0, score_away: 0 });
@@ -253,7 +278,14 @@ const Persahabatan = () => {
         method: 'DELETE',
         headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token}` }
       });
-      if (!res.ok) throw new Error('Gagal menghapus partai');
+      if (!res.ok) {
+        let errMsg = 'Gagal menghapus partai';
+        try {
+          const err = await res.json();
+          errMsg = err.message || errMsg;
+        } catch (_) {}
+        throw new Error(errMsg);
+      }
       setGameModalMode('add');
       setGameFormData({ player_id: '', opponent_name: '', score_home: 0, score_away: 0 });
       fetchMatchDetails(viewedMatch.id);
