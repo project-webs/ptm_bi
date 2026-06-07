@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Login.css';
+import { API_URL } from '../config.js';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -23,7 +24,6 @@ const Login = () => {
     setError('');
 
     try {
-      const { API_URL } = await import('../config.js');
       const response = await fetch(`${API_URL}/login`, {
         method: 'POST',
         headers: {
