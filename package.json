@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "homepage": "https://project-webs.github.io/ptm-bi/",
+  "homepage": "https://project-webs.github.io/ptm_bi/",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

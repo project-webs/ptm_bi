@@ -87,7 +87,7 @@ const Peresmian = () => {
             return (
               <div key={num} style={{ position: 'relative', borderRadius: '20px', overflow: 'hidden', aspectRatio: '16/9', border: '1px solid rgba(0, 212, 255, 0.3)', cursor: 'pointer' }}>
                 <img 
-                  src={`/images/opening${numStr}.jpeg`} 
+                  src={`${import.meta.env.BASE_URL}images/opening${numStr}.jpeg`} 
                   alt={`Opening ${numStr}`} 
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
                 />

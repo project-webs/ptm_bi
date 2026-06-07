@@ -4,13 +4,13 @@ import './About.css';
 const About = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const images = [
-    "/images/bi_new1.jpeg",
-    "/images/bi_new2.jpeg",
-    "/images/bi_new3.jpeg",
-    "/images/bi_new4.jpeg",
-    "/images/bi_new5.jpeg",
-    "/images/bi_new6.jpeg",
-    "/images/bi_new7.jpeg"
+    `${import.meta.env.BASE_URL}images/bi_new1.jpeg`,
+    `${import.meta.env.BASE_URL}images/bi_new2.jpeg`,
+    `${import.meta.env.BASE_URL}images/bi_new3.jpeg`,
+    `${import.meta.env.BASE_URL}images/bi_new4.jpeg`,
+    `${import.meta.env.BASE_URL}images/bi_new5.jpeg`,
+    `${import.meta.env.BASE_URL}images/bi_new6.jpeg`,
+    `${import.meta.env.BASE_URL}images/bi_new7.jpeg`
   ];
 
   useEffect(() => {
