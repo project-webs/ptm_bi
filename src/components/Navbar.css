@@ -323,6 +323,10 @@ nav a.login-btn:hover {
     pointer-events: auto;
   }
 
+  .dropdown-content::before {
+    display: none;
+  }
+
   .dropdown.active .dropdown-content {
     max-height: 500px; /* enough to show all items */
     opacity: 1;
