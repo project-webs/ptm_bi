@@ -46,14 +46,13 @@ const Navbar = () => {
         </Link>
         <nav className={isMenuOpen ? 'active' : ''}>
           <Link to="/" onClick={() => setIsMenuOpen(false)}>Beranda</Link>
-          <a href="/#about" onClick={() => setIsMenuOpen(false)}>Tentang</a>
+          <Link to="/about" onClick={() => setIsMenuOpen(false)}>Tentang</Link>
           
           <div className={`dropdown ${activeDropdown === 'berita' ? 'active' : ''}`}>
             <Link to="/berita" className="dropdown-trigger" onClick={(e) => handleDropdownClick(e, 'berita')}>
               Berita <i className="fa-solid fa-chevron-down dropdown-chevron"></i>
             </Link>
             <div className="dropdown-content">
-              <Link to="/berita" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-newspaper"></i> Berita Terbaru</Link>
               <Link to="/turnamen" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-trophy"></i> Juara Turnamen Double</Link>
               <Link to="/proyek" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-diagram-project"></i> Proyek Pembangunan</Link>
               <Link to="/peresmian" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-building-circle-check"></i> Peresmian Tempat Latihan</Link>
@@ -79,7 +78,6 @@ const Navbar = () => {
               <Link to="/pengurus" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-users-gear"></i> Pengurus PTM BI</Link>
               <Link to="/pemain" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-users"></i> Pemain (Players)</Link>
               <Link to="/iuran" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-handholding-dollar"></i> Iuran Anggota</Link>
-              <Link to="/administrasi" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-folder-open"></i> Administrasi</Link>
               <Link to="/adart" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-scale-balanced"></i> AD/ART</Link>
             </div>
           </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import './About.css';
 
 const About = () => {
@@ -38,6 +39,11 @@ const About = () => {
             <p style={{ color: '#00d4ff', fontWeight: '600', fontStyle: 'italic', marginBottom: 0 }}>
               "Keringat adalah bukti dedikasi, bukan hanya hasil kompetisi"
             </p>
+          </div>
+          <div style={{ marginTop: '2rem' }}>
+            <Link to="/about" className="btn btn-secondary">
+              Selengkapnya Tentang Kami <i className="fa-solid fa-arrow-right" style={{ marginLeft: '8px' }}></i>
+            </Link>
           </div>
         </div>
         <div className="about-image perspective">

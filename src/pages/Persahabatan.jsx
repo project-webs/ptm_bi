@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { API_URL } from '../config';
 
 const Persahabatan = () => {
@@ -45,6 +46,19 @@ const Persahabatan = () => {
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || 'null');
   const isAdmin = user?.role === 'admin';
+
+  if (!token) {
+    return (
+      <div style={{ paddingTop: '150px', paddingBottom: '150px', textAlign: 'center', minHeight: '60vh' }}>
+        <div className="glass" style={{ display: 'inline-block', padding: '3rem', borderRadius: '24px', border: '1px solid rgba(239, 68, 68, 0.3)', background: 'rgba(239, 68, 68, 0.05)', maxWidth: '500px', width: '90%' }}>
+          <i className="fa-solid fa-lock" style={{ fontSize: '3.5rem', color: '#ef4444', marginBottom: '1.5rem', display: 'block' }}></i>
+          <h2 style={{ fontFamily: '"Orbitron", monospace', fontSize: '1.75rem', color: '#ef4444', marginBottom: '1rem' }}>Akses Ditolak</h2>
+          <p style={{ color: '#cbd5e1', fontSize: '1.1rem', marginBottom: '2rem', lineHeight: '1.6' }}>Harus Login untuk melihat halaman ini</p>
+          <Link to="/login" className="btn btn-primary" style={{ display: 'inline-block' }}>Login Sekarang</Link>
+        </div>
+      </div>
+    );
+  }
 
   // ================= FETCHING =================
   const fetchMatches = async () => {

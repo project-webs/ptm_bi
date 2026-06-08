@@ -14,7 +14,7 @@ const Footer = () => {
           <h4>Quick Links</h4>
           <ul>
             <li><Link to="/">Beranda</Link></li>
-            <li><Link to="/#about">Tentang Kami</Link></li>
+            <li><Link to="/about">Tentang Kami</Link></li>
             <li><Link to="/venue">Venue</Link></li>
             <li><Link to="/kontak">Kontak</Link></li>
           </ul>

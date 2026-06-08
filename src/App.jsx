@@ -21,6 +21,7 @@ import Kontak from './pages/Kontak';
 import Login from './pages/Login';
 import AdArt from './pages/AdArt';
 import Iuran from './pages/Iuran';
+import AboutPage from './pages/AboutPage';
 import './index.css';
 
 function App() {
@@ -31,6 +32,7 @@ function App() {
         <main>
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/about" element={<AboutPage />} />
             <Route path="/berita" element={<Berita />} />
             <Route path="/jadwal" element={<Jadwal />} />
             <Route path="/pengurus" element={<Pengurus />} />
