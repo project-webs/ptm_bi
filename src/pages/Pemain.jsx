@@ -45,13 +45,12 @@ const Pemain = () => {
       })
       .then(data => {
         let playersData = [];
-        // The API returns paginated data (data.data) or simple array.
         if (data.data && Array.isArray(data.data)) {
           playersData = data.data;
+        } else if (data.data && data.data.data && Array.isArray(data.data.data)) {
+          playersData = data.data.data;
         } else if (Array.isArray(data)) {
           playersData = data;
-        } else if (data.status === 'success' && data.data) {
-          playersData = data.data;
         }
 
         setPlayers(playersData);
@@ -214,10 +213,12 @@ const Pemain = () => {
     </div>
   );
 
-  const filteredPlayers = players.filter(p => 
-    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (p.division && p.division.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const filteredPlayers = players.filter(p => {
+    if (!p) return false;
+    const nameMatch = p.name ? String(p.name).toLowerCase().includes(searchQuery.toLowerCase()) : false;
+    const divisionMatch = p.division ? String(p.division).toLowerCase().includes(searchQuery.toLowerCase()) : false;
+    return nameMatch || divisionMatch;
+  });
 
   const playersPutra = filteredPlayers.filter(p => p.gender !== 'Perempuan');
   const playersPutri = filteredPlayers.filter(p => p.gender === 'Perempuan');
