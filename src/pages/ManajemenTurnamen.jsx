@@ -370,8 +370,8 @@ const ManajemenTurnamen = () => {
                   name="type" value={formData.type} onChange={handleInputChange} required
                   style={{ width: '100%', padding: '10px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white' }}
                 >
-                  <option value="single_elimination">Single Elimination (Bagan Gugur)</option>
-                  <option value="round_robin">Round Robin (Klasemen Grup)</option>
+                  <option value="single_elimination" style={{ background: '#1e1e2e', color: 'white' }}>Single Elimination (Bagan Gugur)</option>
+                  <option value="round_robin" style={{ background: '#1e1e2e', color: 'white' }}>Round Robin (Klasemen Grup)</option>
                 </select>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>

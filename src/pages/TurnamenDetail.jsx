@@ -16,6 +16,11 @@ const TurnamenDetail = () => {
   const [customName, setCustomName] = useState('');
   const [addLoading, setAddLoading] = useState(false);
 
+  // Bulk Add
+  const [isBulkMode, setIsBulkMode] = useState(false);
+  const [bulkCustomNames, setBulkCustomNames] = useState('');
+  const [bulkSelectedPlayers, setBulkSelectedPlayers] = useState([]);
+
   // Score Modal
   const [scoreModalOpen, setScoreModalOpen] = useState(false);
   const [currentMatch, setCurrentMatch] = useState(null);
@@ -142,6 +147,60 @@ const TurnamenDetail = () => {
 
   const handleAddParticipant = async (e) => {
     e.preventDefault();
+
+    if (isBulkMode) {
+      if (bulkSelectedPlayers.length === 0 && !bulkCustomNames.trim()) return;
+      setAddLoading(true);
+      try {
+        const promises = [];
+        
+        // Add selected existing players
+        bulkSelectedPlayers.forEach(playerId => {
+          promises.push(fetch(`${API_URL}/tournaments/${slug}/participants`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+            body: JSON.stringify({ player_id: playerId, name: null })
+          }).then(async res => {
+             if(!res.ok) {
+               const err = await res.json().catch(()=>({}));
+               throw new Error(err.message || 'Gagal menambah peserta bulk');
+             }
+             return res.json();
+          }));
+        });
+        
+        // Add custom names
+        if (bulkCustomNames.trim()) {
+          const names = bulkCustomNames.split('\n').map(n => n.trim()).filter(n => n);
+          names.forEach(name => {
+            promises.push(fetch(`${API_URL}/tournaments/${slug}/participants`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+              body: JSON.stringify({ player_id: null, name: name })
+            }).then(async res => {
+               if(!res.ok) {
+                 const err = await res.json().catch(()=>({}));
+                 throw new Error(err.message || 'Gagal menambah peserta bulk');
+               }
+               return res.json();
+            }));
+          });
+        }
+        
+        await Promise.all(promises);
+        
+        setBulkSelectedPlayers([]);
+        setBulkCustomNames('');
+        fetchTournament();
+      } catch (err) {
+        alert(err.message || 'Beberapa peserta gagal ditambahkan');
+        fetchTournament(); // Update in case some succeeded
+      } finally {
+        setAddLoading(false);
+      }
+      return;
+    }
+
     if (!selectedPlayerId && !customName) return;
     setAddLoading(true);
     try {
@@ -757,32 +816,83 @@ const TurnamenDetail = () => {
 
               {token && tournament.status === 'pending' && (
                 <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,212,255,0.2)', borderRadius: '12px', padding: '16px', marginBottom: '24px' }}>
-                  <h3 style={{ color: '#00d4ff', fontSize: '1rem', marginBottom: '12px' }}><i className="fa-solid fa-user-plus"></i> Tambah Peserta</h3>
-                  <form onSubmit={handleAddParticipant} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                    <select 
-                      value={selectedPlayerId} 
-                      onChange={e => setSelectedPlayerId(e.target.value)}
-                      disabled={customName !== ''}
-                      style={{ flex: 1, minWidth: '200px', padding: '10px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'white' }}
-                    >
-                      <option value="">-- Pilih dari Pemain --</option>
-                      {players.map(p => (
-                        <option key={p.id} value={p.id}>{p.name} {p.division ? `(${p.division})` : ''}</option>
-                      ))}
-                    </select>
-                    <span style={{ color: '#6b7280', alignSelf: 'center' }}>atau</span>
-                    <input 
-                      type="text" 
-                      placeholder="Ketik Nama Bebas..." 
-                      value={customName}
-                      onChange={e => setCustomName(e.target.value)}
-                      disabled={selectedPlayerId !== ''}
-                      style={{ flex: 1, minWidth: '200px', padding: '10px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'white' }}
-                    />
-                    <button type="submit" disabled={addLoading || (!selectedPlayerId && !customName)} style={{ padding: '10px 20px', background: '#00d4ff', color: 'black', fontWeight: 'bold', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
-                      {addLoading ? 'Menambahkan...' : 'Tambah'}
-                    </button>
-                  </form>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <h3 style={{ color: '#00d4ff', fontSize: '1rem', margin: 0 }}><i className="fa-solid fa-user-plus"></i> Tambah Peserta</h3>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <label style={{ color: '#9ca3af', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <input type="checkbox" checked={isBulkMode} onChange={e => setIsBulkMode(e.target.checked)} style={{ cursor: 'pointer' }} />
+                        Mode Bulk
+                      </label>
+                    </div>
+                  </div>
+                  
+                  {!isBulkMode ? (
+                    <form onSubmit={handleAddParticipant} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                      <select 
+                        value={selectedPlayerId} 
+                        onChange={e => setSelectedPlayerId(e.target.value)}
+                        disabled={customName !== ''}
+                        style={{ flex: 1, minWidth: '200px', padding: '10px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'white' }}
+                      >
+                        <option value="" style={{ background: '#1e1e2e', color: 'white' }}>-- Pilih dari Pemain --</option>
+                        {players.map(p => (
+                          <option key={p.id} value={p.id} style={{ background: '#1e1e2e', color: 'white' }}>{p.name} {p.division ? `(${p.division})` : ''}</option>
+                        ))}
+                      </select>
+                      <span style={{ color: '#6b7280', alignSelf: 'center' }}>atau</span>
+                      <input 
+                        type="text" 
+                        placeholder="Ketik Nama Bebas..." 
+                        value={customName}
+                        onChange={e => setCustomName(e.target.value)}
+                        disabled={selectedPlayerId !== ''}
+                        style={{ flex: 1, minWidth: '200px', padding: '10px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'white' }}
+                      />
+                      <button type="submit" disabled={addLoading || (!selectedPlayerId && !customName)} style={{ padding: '10px 20px', background: '#00d4ff', color: 'black', fontWeight: 'bold', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
+                        {addLoading ? 'Menambahkan...' : 'Tambah'}
+                      </button>
+                    </form>
+                  ) : (
+                    <form onSubmit={handleAddParticipant} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                        <div style={{ flex: 1, minWidth: '250px' }}>
+                          <label style={{ display: 'block', color: '#9ca3af', marginBottom: '8px', fontSize: '13px' }}>Pilih Pemain (Bisa lebih dari 1)</label>
+                          <div style={{ maxHeight: '150px', overflowY: 'auto', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '10px' }}>
+                            {players.map(p => (
+                              <label key={p.id} style={{ display: 'block', color: 'white', marginBottom: '8px', cursor: 'pointer', fontSize: '14px' }}>
+                                <input 
+                                  type="checkbox" 
+                                  value={p.id} 
+                                  checked={bulkSelectedPlayers.includes(p.id)}
+                                  onChange={e => {
+                                    if(e.target.checked) setBulkSelectedPlayers(prev => [...prev, p.id]);
+                                    else setBulkSelectedPlayers(prev => prev.filter(id => id !== p.id));
+                                  }}
+                                  style={{ marginRight: '8px' }}
+                                /> 
+                                {p.name} {p.division ? `(${p.division})` : ''}
+                              </label>
+                            ))}
+                            {players.length === 0 && <div style={{ color: '#9ca3af', fontSize: '13px' }}>Tidak ada data pemain.</div>}
+                          </div>
+                        </div>
+                        <div style={{ flex: 1, minWidth: '250px' }}>
+                          <label style={{ display: 'block', color: '#9ca3af', marginBottom: '8px', fontSize: '13px' }}>Nama Bebas (1 nama per baris)</label>
+                          <textarea 
+                            value={bulkCustomNames}
+                            onChange={e => setBulkCustomNames(e.target.value)}
+                            placeholder="Joko&#10;Budi&#10;Siti"
+                            style={{ width: '100%', height: '150px', padding: '10px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'white', resize: 'vertical' }}
+                          />
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <button type="submit" disabled={addLoading || (bulkSelectedPlayers.length === 0 && !bulkCustomNames.trim())} style={{ padding: '10px 24px', background: '#00d4ff', color: 'black', fontWeight: 'bold', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
+                          {addLoading ? 'Menambahkan...' : 'Tambah Semua'}
+                        </button>
+                      </div>
+                    </form>
+                  )}
                 </div>
               )}
 

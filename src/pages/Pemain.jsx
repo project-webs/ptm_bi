@@ -37,7 +37,10 @@ const Pemain = () => {
       .then(response => {
         if (!response.ok) {
           if (response.status === 401) {
-            throw new Error('Akses ditolak: Anda harus login untuk melihat data pemain.');
+            // Token is invalid, clear it
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            throw new Error('Akses ditolak: Anda harus login ulang.');
           }
           throw new Error('Gagal mengambil data dari API (Status: ' + response.status + ')');
         }
@@ -56,7 +59,9 @@ const Pemain = () => {
         setPlayers(playersData);
 
         if (data.message === 'Unauthenticated.') {
-          setError('Akses ditolak: Anda harus login untuk melihat data pemain.');
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          setError('Akses ditolak: Anda harus login ulang.');
         }
         setLoading(false);
       })
@@ -118,6 +123,12 @@ const Pemain = () => {
       });
 
       if (!response.ok) {
+        if (response.status === 401) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          window.location.reload();
+          throw new Error('Sesi Anda telah habis. Silakan login ulang.');
+        }
         const errorData = await response.json();
         throw new Error(errorData.message || 'Terjadi kesalahan saat menyimpan data');
       }
@@ -364,8 +375,8 @@ const Pemain = () => {
                   onChange={handleInputChange}
                   style={{ width: '100%', padding: '10px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white' }}
                 >
-                  <option value="Laki-laki">Putra (Laki-laki)</option>
-                  <option value="Perempuan">Putri (Perempuan)</option>
+                  <option value="Laki-laki" style={{ background: '#1e1e2e', color: 'white' }}>Putra (Laki-laki)</option>
+                  <option value="Perempuan" style={{ background: '#1e1e2e', color: 'white' }}>Putri (Perempuan)</option>
                 </select>
               </div>
               <div style={{ marginBottom: '1rem' }}>
