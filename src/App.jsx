@@ -22,6 +22,7 @@ import Login from './pages/Login';
 import AdArt from './pages/AdArt';
 import Iuran from './pages/Iuran';
 import AboutPage from './pages/AboutPage';
+import Users from './pages/Users';
 import './index.css';
 
 function App() {
@@ -52,6 +53,7 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/adart" element={<AdArt />} />
             <Route path="/iuran" element={<Iuran />} />
+            <Route path="/users" element={<Users />} />
           </Routes>
         </main>
         <Footer />
