@@ -57,7 +57,6 @@ const Login = () => {
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
-          <i className="fa-solid fa-right-to-bracket login-icon"></i>
           <h2>Masuk ke PTM Batan Indah</h2>
           <p>Silakan masukkan kredensial Anda</p>
         </div>
@@ -67,32 +66,26 @@ const Login = () => {
         <form onSubmit={handleLogin} className="login-form">
           <div className="form-group">
             <label htmlFor="email">Email</label>
-            <div className="input-with-icon">
-              <i className="fa-solid fa-envelope"></i>
-              <input 
-                type="email" 
-                id="email" 
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="email@example.com"
-                required 
-              />
-            </div>
+            <input 
+              type="email" 
+              id="email" 
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="email@example.com"
+              required 
+            />
           </div>
 
           <div className="form-group">
             <label htmlFor="password">Password</label>
-            <div className="input-with-icon">
-              <i className="fa-solid fa-lock"></i>
-              <input 
-                type="password" 
-                id="password" 
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="********"
-                required 
-              />
-            </div>
+            <input 
+              type="password" 
+              id="password" 
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="********"
+              required 
+            />
           </div>
 
           <button type="submit" className="login-submit-btn" disabled={loading}>
