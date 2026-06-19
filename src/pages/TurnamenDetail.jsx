@@ -370,6 +370,30 @@ const TurnamenDetail = () => {
     }
   };
 
+  const handleDeleteScore = async () => {
+    if (!window.confirm('Yakin ingin menghapus skor pertandingan ini? Status pertandingan akan kembali menjadi Pending.')) return;
+    setScoreLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/matches/${currentMatch.id}/reset`, {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`, 
+          'Accept': 'application/json' 
+        }
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.message || 'Gagal menghapus skor');
+      }
+      setScoreModalOpen(false);
+      fetchTournament();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setScoreLoading(false);
+    }
+  };
+
   // Grouping logic for brackets
   const matchesByRound = useMemo(() => {
     if (!tournament || !tournament.matches) return {};
@@ -753,7 +777,7 @@ const TurnamenDetail = () => {
                                   </div>
                                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
                                     {matches.map(match => {
-                                      const canClick = token && !match.is_bye && match.participant1_id && match.participant2_id && match.status !== 'finished';
+                                      const canClick = token && !match.is_bye && match.participant1_id && match.participant2_id && !match.is_rating_processed;
                                       return (
                                         <div key={match.id} 
                                           onClick={() => canClick && openScoreModal(match)}
@@ -774,10 +798,22 @@ const TurnamenDetail = () => {
                                             </span>
                                             {match.status === 'finished' && !match.is_bye && <span style={{ fontSize: '14px', fontWeight: 'bold', color: match.winner_id === match.participant2_id ? '#10b981' : '#6b7280' }}>{match.score2}</span>}
                                           </div>
+
+                                          {/* Point History */}
+                                          {match.status === 'finished' && match.point_history && Array.isArray(match.point_history) && match.point_history.length > 0 && (
+                                            <div style={{ fontSize: '10px', color: '#9ca3af', textAlign: 'center', padding: '5px 8px', borderTop: '1px dashed rgba(255,255,255,0.1)', fontFamily: 'monospace', letterSpacing: '0.5px' }}>
+                                              {match.point_history.map((pts, idx) => (
+                                                <span key={idx}>
+                                                  {pts.p1 ?? 0}-{pts.p2 ?? 0}
+                                                  {idx < match.point_history.length - 1 ? ', ' : ''}
+                                                </span>
+                                              ))}
+                                            </div>
+                                          )}
                                           
                                           {canClick && (
-                                            <div style={{ textAlign: 'center', padding: '6px', background: 'rgba(0,212,255,0.1)', fontSize: '11px', color: '#00d4ff', fontWeight: 600, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                                              <i className="fa-solid fa-pen"></i> Input skor
+                                            <div style={{ textAlign: 'center', padding: '6px', background: match.status === 'finished' ? 'rgba(255,255,255,0.02)' : 'rgba(0, 212, 255, 0.1)', fontSize: '11px', color: match.status === 'finished' ? '#9ca3af' : '#00d4ff', fontWeight: 600, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                                              <i className="fa-solid fa-pen"></i> {match.status === 'finished' ? 'Edit skor' : 'Input skor'}
                                             </div>
                                           )}
                                         </div>
@@ -1064,6 +1100,11 @@ const TurnamenDetail = () => {
                 </div>
               </div>
 
+              {currentMatch.status === 'finished' && (
+                <button type="button" onClick={handleDeleteScore} disabled={scoreLoading} style={{ width: '100%', padding: '12px', background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '8px', cursor: scoreLoading ? 'not-allowed' : 'pointer', fontWeight: 'bold', marginBottom: '10px' }}>
+                  <i className="fa-solid fa-trash"></i> Hapus Skor
+                </button>
+              )}
               <div style={{ display: 'flex', gap: '10px' }}>
                 <button type="button" onClick={() => setScoreModalOpen(false)} style={{ flex: 1, padding: '12px', background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: 'white', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Batal</button>
                 <button type="submit" disabled={scoreLoading} style={{ flex: 1, padding: '12px', background: '#00d4ff', border: 'none', color: 'black', borderRadius: '8px', cursor: scoreLoading ? 'not-allowed' : 'pointer', fontWeight: 'bold', opacity: scoreLoading ? 0.7 : 1 }}>
