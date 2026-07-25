@@ -118,8 +118,12 @@ const PendaftaranTurnamen = () => {
     return serverParticipantPlayerIds.has(playerId);
   }, [serverParticipantPlayerIds]);
 
-  // Handle Checkbox "Ikut Turnamen" (Tanpa Wajib Login)
+  // Handle Checkbox "Ikut Turnamen" (Requires Admin Login)
   const handleToggleParticipation = async (player) => {
+    if (!token) {
+      alert('harus login sebagai admin');
+      return;
+    }
     if (!selectedSlug) {
       alert('Pilih turnamen terlebih dahulu!');
       return;
@@ -136,7 +140,7 @@ const PendaftaranTurnamen = () => {
             method: 'DELETE',
             headers: { 
               'Accept': 'application/json',
-              ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+              'Authorization': `Bearer ${token}`
             }
           });
           if (!res.ok) {
@@ -150,7 +154,7 @@ const PendaftaranTurnamen = () => {
           headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({ player_id: player.id, name: null })
         });
