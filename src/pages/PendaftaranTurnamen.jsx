@@ -203,8 +203,12 @@ const PendaftaranTurnamen = () => {
     }
   };
 
-  // Handle group selection (A / B)
+  // Handle group selection (A / B) - Requires Admin Login
   const handleGroupChange = (playerId, groupVal) => {
+    if (!token) {
+      alert('harus login sebagai admin');
+      return;
+    }
     setPlayerGroups(prev => {
       const updated = { ...prev, [playerId]: groupVal };
       localStorage.setItem('ptm_player_groups', JSON.stringify(updated));
@@ -212,8 +216,12 @@ const PendaftaranTurnamen = () => {
     });
   };
 
-  // Handle Lunas toggle
+  // Handle Lunas toggle - Requires Admin Login
   const handleToggleLunas = (playerId) => {
+    if (!token) {
+      alert('harus login sebagai admin');
+      return;
+    }
     setLunasStatus(prev => {
       const updated = { ...prev, [playerId]: !prev[playerId] };
       localStorage.setItem('ptm_lunas_status', JSON.stringify(updated));
