@@ -30,9 +30,30 @@ const PendaftaranTurnamen = () => {
       return {};
     }
   });
+
   const [lunasStatus, setLunasStatus] = useState(() => {
     try {
       const saved = localStorage.getItem('ptm_lunas_status');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  // Local state for tournament participation per slug (works without login!)
+  const [localParticipations, setLocalParticipations] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ptm_local_participations');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  // Local state for custom guest names added by public users
+  const [localGuests, setLocalGuests] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ptm_local_guests');
       return saved ? JSON.parse(saved) : {};
     } catch {
       return {};
@@ -55,12 +76,9 @@ const PendaftaranTurnamen = () => {
         })
       ]);
 
-      let pendingTournaments = [];
       if (resT.ok) {
         const dataT = await resT.json();
         const list = dataT.data || [];
-        // Prioritize pending/ongoing tournaments, or fallback to all
-        pendingTournaments = list;
         setTournaments(list);
         if (list.length > 0) {
           const firstActive = list.find(t => t.status === 'pending' || t.status === 'ongoing') || list[0];
@@ -106,8 +124,8 @@ const PendaftaranTurnamen = () => {
     }
   }, [selectedSlug, fetchTournamentDetail]);
 
-  // Map participants to player IDs
-  const participantPlayerIds = useMemo(() => {
+  // Map server participants to player IDs
+  const serverParticipantPlayerIds = useMemo(() => {
     if (!currentTournament || !currentTournament.participants) return new Set();
     return new Set(currentTournament.participants.map(p => p.player_id).filter(Boolean));
   }, [currentTournament]);
@@ -122,65 +140,66 @@ const PendaftaranTurnamen = () => {
     return map;
   }, [currentTournament]);
 
-  // Handle Checkbox "Ikut Turnamen"
+  // Check if a player is participating (combines local override & server data)
+  const isPlayerParticipating = useCallback((playerId) => {
+    const slugMap = localParticipations[selectedSlug];
+    if (slugMap && slugMap[playerId] !== undefined) {
+      return slugMap[playerId];
+    }
+    return serverParticipantPlayerIds.has(playerId);
+  }, [localParticipations, selectedSlug, serverParticipantPlayerIds]);
+
+  // Handle Checkbox "Ikut Turnamen" (Can be changed WITHOUT login!)
   const handleToggleParticipation = async (player) => {
     if (!selectedSlug) {
       alert('Pilih turnamen terlebih dahulu!');
       return;
     }
 
-    if (!token) {
-      alert('Akses ditolak: Silakan login terlebih dahulu untuk menambah atau menghapus peserta turnamen.');
-      return;
-    }
+    const currentlyIkut = isPlayerParticipating(player.id);
+    const nextStatus = !currentlyIkut;
 
-    setActionLoadingId(player.id);
-    const isParticipating = participantPlayerIds.has(player.id);
+    // 1. Update local state & localStorage IMMEDIATELY (Works for any public visitor)
+    setLocalParticipations(prev => {
+      const slugMap = prev[selectedSlug] || {};
+      const updatedSlugMap = { ...slugMap, [player.id]: nextStatus };
+      const updated = { ...prev, [selectedSlug]: updatedSlugMap };
+      localStorage.setItem('ptm_local_participations', JSON.stringify(updated));
+      return updated;
+    });
 
-    try {
-      if (isParticipating) {
-        // Remove participant
-        const partObj = participantByPlayerId[player.id];
-        if (partObj) {
-          const res = await fetch(`${API_URL}/tournaments/${selectedSlug}/participants/${partObj.id}`, {
-            method: 'DELETE',
-            headers: { 
+    // 2. If logged in as admin, also sync to backend server API in background
+    if (token) {
+      setActionLoadingId(player.id);
+      try {
+        if (currentlyIkut) {
+          const partObj = participantByPlayerId[player.id];
+          if (partObj) {
+            await fetch(`${API_URL}/tournaments/${selectedSlug}/participants/${partObj.id}`, {
+              method: 'DELETE',
+              headers: { 
+                'Accept': 'application/json',
+                'Authorization': `Bearer ${token}` 
+              }
+            });
+          }
+        } else {
+          await fetch(`${API_URL}/tournaments/${selectedSlug}/participants`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
               'Accept': 'application/json',
-              'Authorization': `Bearer ${token}` 
-            }
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ player_id: player.id, name: null })
           });
-          if (!res.ok) {
-            const errData = await res.json().catch(() => ({}));
-            if (res.status === 401 || res.status === 403) {
-              throw new Error('Akses ditolak: Anda harus login terlebih dahulu.');
-            }
-            throw new Error(errData.message || 'Gagal menghapus peserta');
-          }
         }
-      } else {
-        // Add participant
-        const res = await fetch(`${API_URL}/tournaments/${selectedSlug}/participants`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ player_id: player.id, name: null })
-        });
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          if (res.status === 401 || res.status === 403) {
-            throw new Error('Akses ditolak: Anda harus login terlebih dahulu.');
-          }
-          throw new Error(errData.message || 'Gagal menambahkan peserta');
-        }
+        fetchTournamentDetail(selectedSlug);
+      } catch (err) {
+        console.warn('API sync warning (local state preserved):', err);
+      } finally {
+        setActionLoadingId(null);
       }
-      await fetchTournamentDetail(selectedSlug);
-    } catch (err) {
-      alert(err.message);
-    } finally {
-      setActionLoadingId(null);
     }
   };
 
@@ -202,7 +221,7 @@ const PendaftaranTurnamen = () => {
     });
   };
 
-  // Add custom manual participant name
+  // Add custom manual participant name (Works with or without login)
   const handleAddCustomParticipant = async (e) => {
     e.preventDefault();
     if (!customName.trim()) return;
@@ -211,71 +230,84 @@ const PendaftaranTurnamen = () => {
       return;
     }
 
-    if (!token) {
-      alert('Akses ditolak: Silakan login terlebih dahulu untuk menambah peserta.');
+    const nameToSave = customName.trim();
+    const guestObj = { id: 'guest_' + Date.now(), name: nameToSave };
+
+    // 1. Add locally
+    setLocalGuests(prev => {
+      const slugList = prev[selectedSlug] || [];
+      const updatedList = [...slugList, guestObj];
+      const updated = { ...prev, [selectedSlug]: updatedList };
+      localStorage.setItem('ptm_local_guests', JSON.stringify(updated));
+      return updated;
+    });
+
+    // 2. If logged in, sync to server API
+    if (token) {
+      setCustomLoading(true);
+      try {
+        await fetch(`${API_URL}/tournaments/${selectedSlug}/participants`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ player_id: null, name: nameToSave })
+        });
+        fetchTournamentDetail(selectedSlug);
+      } catch (err) {
+        console.warn('API add guest warning:', err);
+      } finally {
+        setCustomLoading(false);
+      }
+    }
+
+    setCustomName('');
+  };
+
+  // Delete guest participant
+  const handleDeleteGuest = async (guest) => {
+    // Delete local guest
+    if (guest.id && guest.id.toString().startsWith('guest_')) {
+      setLocalGuests(prev => {
+        const slugList = prev[selectedSlug] || [];
+        const updatedList = slugList.filter(g => g.id !== guest.id);
+        const updated = { ...prev, [selectedSlug]: updatedList };
+        localStorage.setItem('ptm_local_guests', JSON.stringify(updated));
+        return updated;
+      });
       return;
     }
 
-    setCustomLoading(true);
-    try {
-      const res = await fetch(`${API_URL}/tournaments/${selectedSlug}/participants`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ player_id: null, name: customName.trim() })
-      });
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        if (res.status === 401 || res.status === 403) {
-          throw new Error('Akses ditolak: Anda harus login terlebih dahulu.');
-        }
-        throw new Error(errData.message || 'Gagal menambahkan peserta manual');
+    if (token) {
+      try {
+        await fetch(`${API_URL}/tournaments/${selectedSlug}/participants/${guest.id}`, {
+          method: 'DELETE',
+          headers: { 
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${token}` 
+          }
+        });
+        fetchTournamentDetail(selectedSlug);
+      } catch (err) {
+        console.warn('API delete guest warning:', err);
       }
-      setCustomName('');
-      await fetchTournamentDetail(selectedSlug);
-    } catch (err) {
-      alert(err.message);
-    } finally {
-      setCustomLoading(false);
     }
   };
 
-  // Delete non-registered (custom) participant
-  const handleDeleteParticipant = async (participantId) => {
-    if (!token) {
-      alert('Akses ditolak: Silakan login terlebih dahulu untuk menghapus peserta.');
-      return;
-    }
-    if (!window.confirm('Yakin ingin menghapus peserta ini?')) return;
-    try {
-      const res = await fetch(`${API_URL}/tournaments/${selectedSlug}/participants/${participantId}`, {
-        method: 'DELETE',
-        headers: { 
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${token}` 
-        }
-      });
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        if (res.status === 401 || res.status === 403) {
-          throw new Error('Akses ditolak: Anda harus login terlebih dahulu.');
-        }
-        throw new Error(errData.message || 'Gagal menghapus peserta');
-      }
-      await fetchTournamentDetail(selectedSlug);
-    } catch (err) {
-      alert(err.message);
-    }
-  };
+  // Combined guests list
+  const allGuests = useMemo(() => {
+    const serverGuests = currentTournament?.participants?.filter(p => !p.player_id) || [];
+    const currentLocalGuests = localGuests[selectedSlug] || [];
+    return [...serverGuests, ...currentLocalGuests];
+  }, [currentTournament, localGuests, selectedSlug]);
 
   // Export to CSV
   const handleExportCSV = () => {
     let csvContent = "data:text/csv;charset=utf-8,No,Nama,Group,Ikut Turnamen,Lunas\n";
     filteredPlayers.forEach((p, idx) => {
-      const isIkut = participantPlayerIds.has(p.id) ? 'Ya' : 'Tidak';
+      const isIkut = isPlayerParticipating(p.id) ? 'Ya' : 'Tidak';
       const grp = playerGroups[p.id] || '(A)';
       const lunas = lunasStatus[p.id] ? 'Lunas' : '--';
       csvContent += `${idx + 1},"${p.name}",${grp},${isIkut},${lunas}\n`;
@@ -296,18 +328,19 @@ const PendaftaranTurnamen = () => {
       const pGroup = playerGroups[p.id] !== undefined ? playerGroups[p.id] : (p.id <= 25 ? '(A)' : (p.id <= 72 ? '(B)' : ''));
       const matchGroup = filterGroup === 'ALL' || pGroup === filterGroup;
       
-      const isIkut = participantPlayerIds.has(p.id);
+      const isIkut = isPlayerParticipating(p.id);
       const matchStatus = filterStatus === 'ALL' || 
         (filterStatus === 'IKUT' && isIkut) || 
         (filterStatus === 'TIDAK' && !isIkut);
 
       return matchSearch && matchGroup && matchStatus;
     });
-  }, [players, searchTerm, filterGroup, filterStatus, playerGroups, participantPlayerIds]);
+  }, [players, searchTerm, filterGroup, filterStatus, playerGroups, isPlayerParticipating]);
 
   const totalIkut = useMemo(() => {
-    return currentTournament?.participants?.length || 0;
-  }, [currentTournament]);
+    const activeMasterCount = players.filter(p => isPlayerParticipating(p.id)).length;
+    return activeMasterCount + allGuests.length;
+  }, [players, isPlayerParticipating, allGuests]);
 
   const totalLunasCount = useMemo(() => {
     return Object.values(lunasStatus).filter(Boolean).length;
@@ -445,19 +478,17 @@ const PendaftaranTurnamen = () => {
           </button>
         </form>
 
-        {/* Unregistered Custom Participants Badge Section */}
-        {currentTournament?.participants?.filter(p => !p.player_id).length > 0 && (
+        {/* Guest Participants Badge Section */}
+        {allGuests.length > 0 && (
           <div style={{ marginBottom: '20px', padding: '14px', background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.2)', borderRadius: '12px' }}>
             <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
-              <i className="fa-solid fa-user-tag"></i> Peserta Manual / Tamu ({currentTournament.participants.filter(p => !p.player_id).length}):
+              <i className="fa-solid fa-user-tag"></i> Peserta Manual / Tamu ({allGuests.length}):
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-              {currentTournament.participants.filter(p => !p.player_id).map(p => (
-                <span key={p.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(245, 158, 11, 0.4)', color: 'white', padding: '4px 10px', borderRadius: '50px', fontSize: '13px' }}>
-                  {p.name}
-                  {token && (
-                    <i className="fa-solid fa-xmark" style={{ color: '#ef4444', cursor: 'pointer', marginLeft: '4px' }} onClick={() => handleDeleteParticipant(p.id)} title="Hapus"></i>
-                  )}
+              {allGuests.map(g => (
+                <span key={g.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(245, 158, 11, 0.4)', color: 'white', padding: '4px 10px', borderRadius: '50px', fontSize: '13px' }}>
+                  {g.name}
+                  <i className="fa-solid fa-xmark" style={{ color: '#ef4444', cursor: 'pointer', marginLeft: '4px' }} onClick={() => handleDeleteGuest(g)} title="Hapus"></i>
                 </span>
               ))}
             </div>
@@ -489,11 +520,11 @@ const PendaftaranTurnamen = () => {
               </thead>
               <tbody>
                 {filteredPlayers.map((player, index) => {
-                  const isChecked = participantPlayerIds.has(player.id);
+                  const isChecked = isPlayerParticipating(player.id);
                   const isSaving = actionLoadingId === player.id;
                   const currentGroup = playerGroups[player.id] !== undefined 
                     ? playerGroups[player.id] 
-                    : (index < 25 ? '(A)' : (index < 72 ? '(B)' : ''));
+                    : (player.id <= 25 ? '(A)' : (player.id <= 72 ? '(B)' : ''));
                   const isLunas = !!lunasStatus[player.id];
 
                   return (
@@ -542,7 +573,7 @@ const PendaftaranTurnamen = () => {
                         </select>
                       </td>
 
-                      {/* Ikut Turnamen Checkbox */}
+                      {/* Ikut Turnamen Checkbox (Tanpa Wajib Login) */}
                       <td style={{ padding: '12px 16px', textAlign: 'center' }}>
                         {isSaving ? (
                           <i className="fa-solid fa-spinner fa-spin" style={{ color: '#00d4ff' }}></i>
