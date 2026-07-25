@@ -9,6 +9,7 @@ import Pengurus from './pages/Pengurus';
 import Pemain from './pages/Pemain';
 import Peresmian from './pages/Peresmian';
 import Irtt from './pages/Irtt';
+import PendaftaranTurnamen from './pages/PendaftaranTurnamen';
 import Persahabatan from './pages/Persahabatan';
 import Proyek from './pages/Proyek';
 import Turnamen from './pages/Turnamen';
@@ -46,6 +47,7 @@ function App() {
             <Route path="/manajemen-turnamen/:slug" element={<TurnamenDetail />} />
             <Route path="/turnamen/:slug" element={<TurnamenDetail />} />
             <Route path="/persahabatan" element={<Persahabatan />} />
+            <Route path="/pendaftaran-turnamen" element={<PendaftaranTurnamen />} />
             <Route path="/venue" element={<Venue />} />
             <Route path="/administrasi" element={<Administrasi />} />
             <Route path="/aplikasi" element={<Aplikasi />} />

@@ -89,6 +89,7 @@ const Navbar = () => {
             <div className="dropdown-content">
               <Link to="/manajemen-turnamen" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-trophy"></i> Manajemen Turnamen</Link>
               <Link to="/persahabatan" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-handshake"></i> Laga Persahabatan</Link>
+              <Link to="/pendaftaran-turnamen" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-file-pen"></i> Pendaftaran Turnamen</Link>
             </div>
           </div>
           
