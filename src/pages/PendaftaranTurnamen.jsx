@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { API_URL } from '../config';
+import './PendaftaranTurnamen.css';
 
 const PendaftaranTurnamen = () => {
   const [tournaments, setTournaments] = useState([]);
@@ -121,6 +122,13 @@ const PendaftaranTurnamen = () => {
   useEffect(() => {
     if (selectedSlug) {
       fetchTournamentDetail(selectedSlug);
+      
+      // Auto-refresh data every 3 seconds for real-time sync
+      const intervalId = setInterval(() => {
+        fetchTournamentDetail(selectedSlug);
+      }, 3000);
+      
+      return () => clearInterval(intervalId);
     }
   }, [selectedSlug, fetchTournamentDetail]);
 
@@ -355,7 +363,7 @@ const PendaftaranTurnamen = () => {
   }, [lunasStatus]);
 
   return (
-    <div style={{ paddingTop: '110px', maxWidth: '1200px', margin: '0 auto', paddingLeft: '1.5rem', paddingRight: '1.5rem', minHeight: '80vh', paddingBottom: '5rem' }}>
+    <div className="ptm-container">
       
       {/* Header Title & Tournament Select */}
       <section style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
@@ -382,12 +390,15 @@ const PendaftaranTurnamen = () => {
                 </option>
               ))}
             </select>
+            <div className="live-indicator" title="Data disinkronkan secara realtime">
+              <div className="live-dot"></div> LIVE
+            </div>
           </div>
         )}
       </section>
 
       {/* Stats Summary Widgets */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.2rem', marginBottom: '2rem' }}>
+      <div className="ptm-stats-grid">
         <div className="glass" style={{ padding: '20px', borderRadius: '16px', display: 'flex', alignItems: 'center', gap: '16px' }}>
           <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(0, 212, 255, 0.1)', color: '#00d4ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem' }}>
             <i className="fa-solid fa-users"></i>
@@ -423,10 +434,10 @@ const PendaftaranTurnamen = () => {
       <div className="glass" style={{ borderRadius: '20px', padding: '24px', position: 'relative' }}>
         
         {/* Controls Toolbar: Search & Export */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <div className="ptm-toolbar">
           
           {/* Search Box */}
-          <div style={{ position: 'relative', flex: '1 1 280px' }}>
+          <div className="ptm-search">
             <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }}></i>
             <input 
               type="text" 
@@ -438,7 +449,7 @@ const PendaftaranTurnamen = () => {
           </div>
 
           {/* Group & Status Filters */}
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <div className="ptm-filters">
             <select 
               value={filterGroup} 
               onChange={(e) => setFilterGroup(e.target.value)}
@@ -469,7 +480,7 @@ const PendaftaranTurnamen = () => {
         </div>
 
         {/* Custom Guest Registration Bar */}
-        <form onSubmit={handleAddCustomParticipant} style={{ display: 'flex', gap: '10px', marginBottom: '24px', background: 'rgba(255,255,255,0.03)', padding: '12px 16px', borderRadius: '12px', border: '1px dashed rgba(0, 212, 255, 0.3)' }}>
+        <form onSubmit={handleAddCustomParticipant} className="ptm-guest-form">
           <input 
             type="text" 
             placeholder="Tambah nama peserta manual / tamu..." 
@@ -515,8 +526,8 @@ const PendaftaranTurnamen = () => {
             Tidak ada pemain yang sesuai dengan pencarian/filter.
           </div>
         ) : (
-          <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', color: 'white' }}>
+          <div className="ptm-table-container">
+            <table className="ptm-table">
               <thead>
                 <tr style={{ background: 'rgba(26, 58, 92, 0.8)', borderBottom: '2px solid rgba(0, 212, 255, 0.3)', color: '#00d4ff', textAlign: 'left' }}>
                   <th style={{ padding: '14px 16px', width: '60px', textAlign: 'center' }}>No</th>
