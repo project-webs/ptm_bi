@@ -129,6 +129,11 @@ const PendaftaranTurnamen = () => {
       return;
     }
 
+    if (!token) {
+      alert('Akses ditolak: Silakan login terlebih dahulu untuk menambah atau menghapus peserta turnamen.');
+      return;
+    }
+
     setActionLoadingId(player.id);
     const isParticipating = participantPlayerIds.has(player.id);
 
@@ -139,9 +144,18 @@ const PendaftaranTurnamen = () => {
         if (partObj) {
           const res = await fetch(`${API_URL}/tournaments/${selectedSlug}/participants/${partObj.id}`, {
             method: 'DELETE',
-            headers: { 'Accept': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }
+            headers: { 
+              'Accept': 'application/json',
+              'Authorization': `Bearer ${token}` 
+            }
           });
-          if (!res.ok) throw new Error('Gagal menghapus peserta');
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            if (res.status === 401 || res.status === 403) {
+              throw new Error('Akses ditolak: Anda harus login terlebih dahulu.');
+            }
+            throw new Error(errData.message || 'Gagal menghapus peserta');
+          }
         }
       } else {
         // Add participant
@@ -150,12 +164,15 @@ const PendaftaranTurnamen = () => {
           headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({ player_id: player.id, name: null })
         });
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
+          if (res.status === 401 || res.status === 403) {
+            throw new Error('Akses ditolak: Anda harus login terlebih dahulu.');
+          }
           throw new Error(errData.message || 'Gagal menambahkan peserta');
         }
       }
@@ -194,6 +211,11 @@ const PendaftaranTurnamen = () => {
       return;
     }
 
+    if (!token) {
+      alert('Akses ditolak: Silakan login terlebih dahulu untuk menambah peserta.');
+      return;
+    }
+
     setCustomLoading(true);
     try {
       const res = await fetch(`${API_URL}/tournaments/${selectedSlug}/participants`, {
@@ -201,12 +223,15 @@ const PendaftaranTurnamen = () => {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ player_id: null, name: customName.trim() })
       });
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
+        if (res.status === 401 || res.status === 403) {
+          throw new Error('Akses ditolak: Anda harus login terlebih dahulu.');
+        }
         throw new Error(errData.message || 'Gagal menambahkan peserta manual');
       }
       setCustomName('');
@@ -220,13 +245,26 @@ const PendaftaranTurnamen = () => {
 
   // Delete non-registered (custom) participant
   const handleDeleteParticipant = async (participantId) => {
+    if (!token) {
+      alert('Akses ditolak: Silakan login terlebih dahulu untuk menghapus peserta.');
+      return;
+    }
     if (!window.confirm('Yakin ingin menghapus peserta ini?')) return;
     try {
       const res = await fetch(`${API_URL}/tournaments/${selectedSlug}/participants/${participantId}`, {
         method: 'DELETE',
-        headers: { 'Accept': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }
+        headers: { 
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}` 
+        }
       });
-      if (!res.ok) throw new Error('Gagal menghapus peserta');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        if (res.status === 401 || res.status === 403) {
+          throw new Error('Akses ditolak: Anda harus login terlebih dahulu.');
+        }
+        throw new Error(errData.message || 'Gagal menghapus peserta');
+      }
       await fetchTournamentDetail(selectedSlug);
     } catch (err) {
       alert(err.message);
