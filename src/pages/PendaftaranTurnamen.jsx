@@ -118,12 +118,8 @@ const PendaftaranTurnamen = () => {
     return serverParticipantPlayerIds.has(playerId);
   }, [serverParticipantPlayerIds]);
 
-  // Handle Checkbox "Ikut Turnamen" (Requires Admin Login)
+  // Handle Checkbox "Ikut Turnamen" (Tanpa Wajib Login)
   const handleToggleParticipation = async (player) => {
-    if (!token) {
-      alert('harus login sebagai admin');
-      return;
-    }
     if (!selectedSlug) {
       alert('Pilih turnamen terlebih dahulu!');
       return;
@@ -136,24 +132,32 @@ const PendaftaranTurnamen = () => {
       if (currentlyIkut) {
         const partObj = participantByPlayerId[player.id];
         if (partObj) {
-          await fetch(`${API_URL}/tournaments/${selectedSlug}/participants/${partObj.id}`, {
+          const res = await fetch(`${API_URL}/tournaments/${selectedSlug}/participants/${partObj.id}`, {
             method: 'DELETE',
             headers: { 
               'Accept': 'application/json',
-              'Authorization': `Bearer ${token}` 
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {})
             }
           });
+          if (!res.ok) {
+            const errorData = await res.json().catch(() => ({}));
+            throw new Error(errorData.message || 'Ditolak oleh server');
+          }
         }
       } else {
-        await fetch(`${API_URL}/tournaments/${selectedSlug}/participants`, {
+        const res = await fetch(`${API_URL}/tournaments/${selectedSlug}/participants`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
-            'Authorization': `Bearer ${token}`
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
           },
           body: JSON.stringify({ player_id: player.id, name: null })
         });
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          throw new Error(errorData.message || 'Ditolak oleh server');
+        }
       }
       fetchTournamentDetail(selectedSlug);
     } catch (err) {
