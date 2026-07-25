@@ -22,44 +22,9 @@ const PendaftaranTurnamen = () => {
   const [customName, setCustomName] = useState('');
   const [customLoading, setCustomLoading] = useState(false);
 
-  // Local state for groups & payment status per player (persisted in localStorage)
-  const [playerGroups, setPlayerGroups] = useState(() => {
-    try {
-      const saved = localStorage.getItem('ptm_player_groups');
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
-  });
-
-  const [lunasStatus, setLunasStatus] = useState(() => {
-    try {
-      const saved = localStorage.getItem('ptm_lunas_status');
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
-  });
-
-  // Local state for tournament participation per slug (works without login!)
-  const [localParticipations, setLocalParticipations] = useState(() => {
-    try {
-      const saved = localStorage.getItem('ptm_local_participations');
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
-  });
-
-  // Local state for custom guest names added by public users
-  const [localGuests, setLocalGuests] = useState(() => {
-    try {
-      const saved = localStorage.getItem('ptm_local_guests');
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
-  });
+  // Local state for groups & payment status per player (lost on refresh until backend supports them)
+  const [playerGroups, setPlayerGroups] = useState({});
+  const [lunasStatus, setLunasStatus] = useState({});
 
   const token = localStorage.getItem('token');
 
@@ -148,66 +113,54 @@ const PendaftaranTurnamen = () => {
     return map;
   }, [currentTournament]);
 
-  // Check if a player is participating (combines local override & server data)
+  // Check if a player is participating (Server data only)
   const isPlayerParticipating = useCallback((playerId) => {
-    const slugMap = localParticipations[selectedSlug];
-    if (slugMap && slugMap[playerId] !== undefined) {
-      return slugMap[playerId];
-    }
     return serverParticipantPlayerIds.has(playerId);
-  }, [localParticipations, selectedSlug, serverParticipantPlayerIds]);
+  }, [serverParticipantPlayerIds]);
 
-  // Handle Checkbox "Ikut Turnamen" (Can be changed WITHOUT login!)
+  // Handle Checkbox "Ikut Turnamen" (Requires Admin Login)
   const handleToggleParticipation = async (player) => {
+    if (!token) {
+      alert('harus login sebagai admin');
+      return;
+    }
     if (!selectedSlug) {
       alert('Pilih turnamen terlebih dahulu!');
       return;
     }
 
     const currentlyIkut = isPlayerParticipating(player.id);
-    const nextStatus = !currentlyIkut;
-
-    // 1. Update local state & localStorage IMMEDIATELY (Works for any public visitor)
-    setLocalParticipations(prev => {
-      const slugMap = prev[selectedSlug] || {};
-      const updatedSlugMap = { ...slugMap, [player.id]: nextStatus };
-      const updated = { ...prev, [selectedSlug]: updatedSlugMap };
-      localStorage.setItem('ptm_local_participations', JSON.stringify(updated));
-      return updated;
-    });
-
-    // 2. If logged in as admin, also sync to backend server API in background
-    if (token) {
-      setActionLoadingId(player.id);
-      try {
-        if (currentlyIkut) {
-          const partObj = participantByPlayerId[player.id];
-          if (partObj) {
-            await fetch(`${API_URL}/tournaments/${selectedSlug}/participants/${partObj.id}`, {
-              method: 'DELETE',
-              headers: { 
-                'Accept': 'application/json',
-                'Authorization': `Bearer ${token}` 
-              }
-            });
-          }
-        } else {
-          await fetch(`${API_URL}/tournaments/${selectedSlug}/participants`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
+    
+    setActionLoadingId(player.id);
+    try {
+      if (currentlyIkut) {
+        const partObj = participantByPlayerId[player.id];
+        if (partObj) {
+          await fetch(`${API_URL}/tournaments/${selectedSlug}/participants/${partObj.id}`, {
+            method: 'DELETE',
+            headers: { 
               'Accept': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ player_id: player.id, name: null })
+              'Authorization': `Bearer ${token}` 
+            }
           });
         }
-        fetchTournamentDetail(selectedSlug);
-      } catch (err) {
-        console.warn('API sync warning (local state preserved):', err);
-      } finally {
-        setActionLoadingId(null);
+      } else {
+        await fetch(`${API_URL}/tournaments/${selectedSlug}/participants`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ player_id: player.id, name: null })
+        });
       }
+      fetchTournamentDetail(selectedSlug);
+    } catch (err) {
+      console.warn('API sync error:', err);
+      alert('Gagal mengupdate partisipasi: ' + err.message);
+    } finally {
+      setActionLoadingId(null);
     }
   };
 
@@ -217,11 +170,7 @@ const PendaftaranTurnamen = () => {
       alert('harus login sebagai admin');
       return;
     }
-    setPlayerGroups(prev => {
-      const updated = { ...prev, [playerId]: groupVal };
-      localStorage.setItem('ptm_player_groups', JSON.stringify(updated));
-      return updated;
-    });
+    setPlayerGroups(prev => ({ ...prev, [playerId]: groupVal }));
   };
 
   // Handle Lunas toggle - Requires Admin Login
@@ -230,16 +179,16 @@ const PendaftaranTurnamen = () => {
       alert('harus login sebagai admin');
       return;
     }
-    setLunasStatus(prev => {
-      const updated = { ...prev, [playerId]: !prev[playerId] };
-      localStorage.setItem('ptm_lunas_status', JSON.stringify(updated));
-      return updated;
-    });
+    setLunasStatus(prev => ({ ...prev, [playerId]: !prev[playerId] }));
   };
 
-  // Add custom manual participant name (Works with or without login)
+  // Add custom manual participant name (Requires Admin Login)
   const handleAddCustomParticipant = async (e) => {
     e.preventDefault();
+    if (!token) {
+      alert('harus login sebagai admin');
+      return;
+    }
     if (!customName.trim()) return;
     if (!selectedSlug) {
       alert('Pilih turnamen terlebih dahulu!');
@@ -247,77 +196,54 @@ const PendaftaranTurnamen = () => {
     }
 
     const nameToSave = customName.trim();
-    const guestObj = { id: 'guest_' + Date.now(), name: nameToSave };
-
-    // 1. Add locally
-    setLocalGuests(prev => {
-      const slugList = prev[selectedSlug] || [];
-      const updatedList = [...slugList, guestObj];
-      const updated = { ...prev, [selectedSlug]: updatedList };
-      localStorage.setItem('ptm_local_guests', JSON.stringify(updated));
-      return updated;
-    });
-
-    // 2. If logged in, sync to server API
-    if (token) {
-      setCustomLoading(true);
-      try {
-        await fetch(`${API_URL}/tournaments/${selectedSlug}/participants`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ player_id: null, name: nameToSave })
-        });
-        fetchTournamentDetail(selectedSlug);
-      } catch (err) {
-        console.warn('API add guest warning:', err);
-      } finally {
-        setCustomLoading(false);
-      }
+    
+    setCustomLoading(true);
+    try {
+      await fetch(`${API_URL}/tournaments/${selectedSlug}/participants`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ player_id: null, name: nameToSave })
+      });
+      fetchTournamentDetail(selectedSlug);
+      setCustomName('');
+    } catch (err) {
+      console.warn('API add guest error:', err);
+      alert('Gagal menambah tamu: ' + err.message);
+    } finally {
+      setCustomLoading(false);
     }
-
-    setCustomName('');
   };
 
   // Delete guest participant
   const handleDeleteGuest = async (guest) => {
-    // Delete local guest
-    if (guest.id && guest.id.toString().startsWith('guest_')) {
-      setLocalGuests(prev => {
-        const slugList = prev[selectedSlug] || [];
-        const updatedList = slugList.filter(g => g.id !== guest.id);
-        const updated = { ...prev, [selectedSlug]: updatedList };
-        localStorage.setItem('ptm_local_guests', JSON.stringify(updated));
-        return updated;
-      });
+    if (!token) {
+      alert('harus login sebagai admin');
       return;
     }
 
-    if (token) {
-      try {
-        await fetch(`${API_URL}/tournaments/${selectedSlug}/participants/${guest.id}`, {
-          method: 'DELETE',
-          headers: { 
-            'Accept': 'application/json',
-            'Authorization': `Bearer ${token}` 
-          }
-        });
-        fetchTournamentDetail(selectedSlug);
-      } catch (err) {
-        console.warn('API delete guest warning:', err);
-      }
+    try {
+      await fetch(`${API_URL}/tournaments/${selectedSlug}/participants/${guest.id}`, {
+        method: 'DELETE',
+        headers: { 
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}` 
+        }
+      });
+      fetchTournamentDetail(selectedSlug);
+    } catch (err) {
+      console.warn('API delete guest error:', err);
+      alert('Gagal menghapus tamu: ' + err.message);
     }
   };
 
-  // Combined guests list
+  // Combined guests list (Server data only)
   const allGuests = useMemo(() => {
-    const serverGuests = currentTournament?.participants?.filter(p => !p.player_id) || [];
-    const currentLocalGuests = localGuests[selectedSlug] || [];
-    return [...serverGuests, ...currentLocalGuests];
-  }, [currentTournament, localGuests, selectedSlug]);
+    return currentTournament?.participants?.filter(p => !p.player_id) || [];
+  }, [currentTournament]);
 
   // Export to CSV
   const handleExportCSV = () => {
