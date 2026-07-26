@@ -150,13 +150,41 @@ const PendaftaranTurnamen = () => {
     return serverParticipantPlayerIds.has(playerId);
   }, [serverParticipantPlayerIds, ikutStatus]);
 
-  // Handle Toggle "Ikut Turnamen" (local state, seperti Lunas)
-  const handleToggleParticipation = (playerId) => {
-    if (!token) {
-      alert('harus login sebagai admin');
-      return;
+  // Handle Toggle "Ikut Turnamen" (optimistic + API)
+  const handleToggleParticipation = async (playerId) => {
+    if (!token) { alert('harus login sebagai admin'); return; }
+    if (!selectedSlug) { alert('Pilih turnamen terlebih dahulu!'); return; }
+
+    const currentlyParticipating = isPlayerParticipating(playerId);
+    const newValue = !currentlyParticipating;
+
+    // Optimistic update
+    setIkutStatus(prev => ({ ...prev, [playerId]: newValue }));
+
+    try {
+      if (newValue) {
+        const res = await fetch(`${API_URL}/tournaments/${selectedSlug}/participants`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ player_id: playerId, name: null })
+        });
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || 'Ditolak server');
+      } else {
+        const participant = participantByPlayerId[playerId];
+        if (participant) {
+          const res = await fetch(`${API_URL}/tournaments/${selectedSlug}/participants/${participant.id}`, {
+            method: 'DELETE',
+            headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token}` }
+          });
+          if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || 'Gagal hapus');
+        }
+      }
+      setIkutStatus(prev => { const next = { ...prev }; delete next[playerId]; return next; });
+      fetchTournamentDetail(selectedSlug);
+    } catch (err) {
+      setIkutStatus(prev => ({ ...prev, [playerId]: currentlyParticipating }));
+      alert('Gagal mengupdate partisipasi: ' + err.message);
     }
-    setIkutStatus(prev => ({ ...prev, [playerId]: !prev[playerId] }));
   };
 
   // Handle group selection (A / B) - Requires Admin Login
@@ -168,13 +196,34 @@ const PendaftaranTurnamen = () => {
     setPlayerGroups(prev => ({ ...prev, [playerId]: groupVal }));
   };
 
-  // Handle Lunas toggle - Requires Admin Login
-  const handleToggleLunas = (playerId) => {
-    if (!token) {
-      alert('harus login sebagai admin');
+  // Handle Lunas toggle (optimistic + API)
+  const handleToggleLunas = async (playerId) => {
+    if (!token) { alert('harus login sebagai admin'); return; }
+
+    const participant = participantByPlayerId[playerId];
+    if (!participant) {
+      alert('Pemain harus didaftarkan sebagai peserta turnamen terlebih dahulu');
       return;
     }
-    setLunasStatus(prev => ({ ...prev, [playerId]: !prev[playerId] }));
+
+    const newValue = !(playerId in lunasStatus ? lunasStatus[playerId] : participant.is_paid);
+
+    // Optimistic update
+    setLunasStatus(prev => ({ ...prev, [playerId]: newValue }));
+
+    try {
+      const res = await fetch(`${API_URL}/tournaments/${selectedSlug}/participants/${participant.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ is_paid: newValue })
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || 'Gagal update');
+      setLunasStatus(prev => { const next = { ...prev }; delete next[playerId]; return next; });
+      fetchTournamentDetail(selectedSlug);
+    } catch (err) {
+      setLunasStatus(prev => ({ ...prev, [playerId]: !newValue }));
+      alert('Gagal mengupdate pembayaran: ' + err.message);
+    }
   };
 
   // Add custom manual participant name (Requires Admin Login)
@@ -246,7 +295,9 @@ const PendaftaranTurnamen = () => {
     filteredPlayers.forEach((p, idx) => {
       const isIkut = isPlayerParticipating(p.id) ? 'Ya' : 'Tidak';
       const grp = playerGroups[p.id] || '(A)';
-      const lunas = lunasStatus[p.id] ? 'Lunas' : '--';
+      const pParticipant = participantByPlayerId[p.id];
+      const isLunasCsv = p.id in lunasStatus ? lunasStatus[p.id] : (pParticipant?.is_paid || false);
+      const lunas = isLunasCsv ? 'Lunas' : '--';
       csvContent += `${idx + 1},"${p.name}",${grp},${isIkut},${lunas}\n`;
     });
     const encodedUri = encodeURI(csvContent);
@@ -280,8 +331,14 @@ const PendaftaranTurnamen = () => {
   }, [players, isPlayerParticipating, allGuests]);
 
   const totalLunasCount = useMemo(() => {
-    return Object.values(lunasStatus).filter(Boolean).length;
-  }, [lunasStatus]);
+    let count = Object.values(lunasStatus).filter(Boolean).length;
+    if (currentTournament?.participants) {
+      currentTournament.participants.forEach(p => {
+        if (p.player_id && !(p.player_id in lunasStatus) && p.is_paid) count++;
+      });
+    }
+    return count;
+  }, [lunasStatus, currentTournament]);
 
   return (
     <div className="ptm-container">
@@ -464,7 +521,8 @@ const PendaftaranTurnamen = () => {
                   const currentGroup = playerGroups[player.id] !== undefined 
                     ? playerGroups[player.id] 
                     : (player.id <= 25 ? '(A)' : (player.id <= 72 ? '(B)' : ''));
-                  const isLunas = !!lunasStatus[player.id];
+                  const participant = participantByPlayerId[player.id];
+                  const isLunas = player.id in lunasStatus ? lunasStatus[player.id] : (participant?.is_paid || false);
 
                   return (
                     <tr 
