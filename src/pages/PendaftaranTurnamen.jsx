@@ -54,7 +54,13 @@ const PendaftaranTurnamen = () => {
 
       if (resP.ok) {
         const dataP = await resP.json();
+        console.log('=== PLAYERS RAW RESPONSE ===', JSON.stringify(dataP).substring(0, 500));
         const pList = dataP.data || dataP || [];
+        console.log('=== PLAYERS LIST ===', JSON.stringify(pList).substring(0, 500));
+        if (pList.length > 0) {
+          console.log('=== FIRST PLAYER KEYS ===', Object.keys(pList[0]));
+          console.log('=== FIRST PLAYER ID TYPE ===', typeof pList[0].id, pList[0].id);
+        }
         setPlayers(pList);
       }
     } catch (err) {
@@ -149,6 +155,8 @@ const PendaftaranTurnamen = () => {
           }
         }
       } else {
+        const payload = { player_id: player.id, name: null };
+        console.log('=== SENDING PARTICIPANT ===', selectedSlug, JSON.stringify(payload));
         const res = await fetch(`${API_URL}/tournaments/${selectedSlug}/participants`, {
           method: 'POST',
           headers: {
@@ -156,10 +164,11 @@ const PendaftaranTurnamen = () => {
             'Accept': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({ player_id: player.id, name: null })
+          body: JSON.stringify(payload)
         });
         if (!res.ok) {
           const errorData = await res.json().catch(() => ({}));
+          console.log('=== PARTICIPANT ERROR RESPONSE ===', JSON.stringify(errorData));
           throw new Error(errorData.message || 'Ditolak oleh server');
         }
       }
