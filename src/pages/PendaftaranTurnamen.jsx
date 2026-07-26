@@ -129,39 +129,20 @@ const PendaftaranTurnamen = () => {
       return;
     }
 
-    const currentlyIkut = isPlayerParticipating(player.id);
-    
     setActionLoadingId(player.id);
     try {
-      if (currentlyIkut) {
-        const partObj = participantByPlayerId[player.id];
-        if (partObj) {
-          const res = await fetch(`${API_URL}/tournaments/${selectedSlug}/participants/${partObj.id}`, {
-            method: 'DELETE',
-            headers: { 
-              'Accept': 'application/json',
-              'Authorization': `Bearer ${token}`
-            }
-          });
-          if (!res.ok) {
-            const errorData = await res.json().catch(() => ({}));
-            throw new Error(errorData.message || 'Ditolak oleh server');
-          }
-        }
-      } else {
-        const res = await fetch(`${API_URL}/tournaments/${selectedSlug}/participants`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ player_id: player.id, name: null })
-        });
-        if (!res.ok) {
-          const errorData = await res.json().catch(() => ({}));
-          throw new Error(errorData.message || 'Ditolak oleh server');
-        }
+      const res = await fetch(`${API_URL}/tournaments/${selectedSlug}/participants`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ player_id: player.id, name: null })
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Ditolak oleh server');
       }
       fetchTournamentDetail(selectedSlug);
     } catch (err) {
