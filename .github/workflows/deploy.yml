@@ -35,7 +35,7 @@ jobs:
         
       - name: Build
         env:
-          VITE_API_URL: 'https://api-all.abudzargroup.id/api'
+          VITE_API_URL: 'https://api-ptm-bi.abudzargroup.id/api'
         run: npm run build
         
       - name: Setup Pages
