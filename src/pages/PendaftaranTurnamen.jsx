@@ -22,9 +22,10 @@ const PendaftaranTurnamen = () => {
   const [customName, setCustomName] = useState('');
   const [customLoading, setCustomLoading] = useState(false);
 
-  // Local state for groups & payment status per player (lost on refresh until backend supports them)
+  // Local state for groups, payment status & participation per player
   const [playerGroups, setPlayerGroups] = useState({});
   const [lunasStatus, setLunasStatus] = useState({});
+  const [ikutStatus, setIkutStatus] = useState({});
 
   const token = localStorage.getItem('token');
 
@@ -113,44 +114,19 @@ const PendaftaranTurnamen = () => {
     return map;
   }, [currentTournament]);
 
-  // Check if a player is participating (Server data only)
+  // Check if a player is participating (server data with local override)
   const isPlayerParticipating = useCallback((playerId) => {
+    if (playerId in ikutStatus) return ikutStatus[playerId];
     return serverParticipantPlayerIds.has(playerId);
-  }, [serverParticipantPlayerIds]);
+  }, [serverParticipantPlayerIds, ikutStatus]);
 
-  // Handle Checkbox "Ikut Turnamen" (Requires Admin Login)
-  const handleToggleParticipation = async (player) => {
+  // Handle Toggle "Ikut Turnamen" (local state, seperti Lunas)
+  const handleToggleParticipation = (playerId) => {
     if (!token) {
       alert('harus login sebagai admin');
       return;
     }
-    if (!selectedSlug) {
-      alert('Pilih turnamen terlebih dahulu!');
-      return;
-    }
-
-    setActionLoadingId(player.id);
-    try {
-      const res = await fetch(`${API_URL}/tournaments/${selectedSlug}/participants`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ player_id: player.id, name: null })
-      });
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Ditolak oleh server');
-      }
-      fetchTournamentDetail(selectedSlug);
-    } catch (err) {
-      console.warn('API sync error:', err);
-      alert('Gagal mengupdate partisipasi: ' + err.message);
-    } finally {
-      setActionLoadingId(null);
-    }
+    setIkutStatus(prev => ({ ...prev, [playerId]: !prev[playerId] }));
   };
 
   // Handle group selection (A / B) - Requires Admin Login
@@ -507,22 +483,24 @@ const PendaftaranTurnamen = () => {
                         </select>
                       </td>
 
-                      {/* Ikut Turnamen Checkbox (Tanpa Wajib Login) */}
-                      <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                        {isSaving ? (
-                          <i className="fa-solid fa-spinner fa-spin" style={{ color: '#00d4ff' }}></i>
+                      {/* Ikut Turnamen Toggle (seperti Lunas) */}
+                      <td 
+                        onClick={() => handleToggleParticipation(player.id)}
+                        style={{ 
+                          padding: '12px 16px', 
+                          textAlign: 'center', 
+                          cursor: token ? 'pointer' : 'default', 
+                          fontWeight: 'bold', 
+                          userSelect: 'none',
+                          color: isChecked ? '#10b981' : '#6b7280'
+                        }}
+                      >
+                        {isChecked ? (
+                          <span style={{ background: 'rgba(16, 185, 129, 0.2)', border: '1px solid rgba(16, 185, 129, 0.4)', padding: '4px 10px', borderRadius: '50px', fontSize: '12px', color: '#10b981' }}>
+                            <i className="fa-solid fa-check"></i> Ikut
+                          </span>
                         ) : (
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => handleToggleParticipation(player)}
-                            style={{
-                              width: '20px',
-                              height: '20px',
-                              cursor: 'pointer',
-                              accentColor: '#10b981'
-                            }}
-                          />
+                          <span style={{ color: '#9ca3af' }}>--</span>
                         )}
                       </td>
 
