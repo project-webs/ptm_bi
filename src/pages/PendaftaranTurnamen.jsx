@@ -73,7 +73,11 @@ const PendaftaranTurnamen = () => {
       });
       if (res.ok) {
         const data = await res.json();
-        setCurrentTournament(data.data || null);
+        const tournament = data.data || null;
+        if (tournament && tournament.participants) {
+          console.log('=== EXISTING PARTICIPANTS ===', JSON.stringify(tournament.participants.map(p => ({ id: p.id, player_id: p.player_id, name: p.name }))));
+        }
+        setCurrentTournament(tournament);
       }
     } catch (err) {
       console.error('Error fetching tournament details:', err);
@@ -130,6 +134,7 @@ const PendaftaranTurnamen = () => {
     }
 
     setActionLoadingId(player.id);
+    console.log('=== ADD PARTICIPANT ===', { player_id: player.id, player_name: player.name });
     try {
       const res = await fetch(`${API_URL}/tournaments/${selectedSlug}/participants`, {
         method: 'POST',
