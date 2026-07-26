@@ -20,7 +20,7 @@ const Users = () => {
   // Check authorization
   const currentUserStr = localStorage.getItem('user');
   const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
-  const isAdmin = currentUser && (currentUser.email === 'admin@ptmbi.com' || currentUser.email === 'admin@turnament.com');
+  const isAdmin = currentUser?.role === 'admin';
 
   const fetchUsers = async () => {
     try {

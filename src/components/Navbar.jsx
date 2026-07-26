@@ -105,7 +105,7 @@ const Navbar = () => {
                 <i className="fa-solid fa-user-circle"></i> {user.name} ({user.role}) <i className="fa-solid fa-chevron-down dropdown-chevron"></i>
               </span>
               <div className="dropdown-content">
-                {(user.email === 'admin@ptmbi.com' || user.email === 'admin@turnament.com') && (
+                {user.role === 'admin' && (
                   <Link to="/users" onClick={() => setIsMenuOpen(false)}>
                     <i className="fa-solid fa-users-cog"></i> Kelola Pengguna
                   </Link>
