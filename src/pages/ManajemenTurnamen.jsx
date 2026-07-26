@@ -291,6 +291,10 @@ const ManajemenTurnamen = () => {
               </div>
 
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: '#cbd5e1' }}>
+                  <i className="fa-solid fa-user" style={{ color: '#a855f7' }}></i>
+                  <span>{tournament.user?.name || 'Unknown'}</span>
+                </div>
                 {(tournament.start_date || tournament.end_date) && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: '#cbd5e1' }}>
                     <i className="fa-solid fa-calendar-days" style={{ color: '#00d4ff' }}></i>
