@@ -4,6 +4,7 @@ import { API_URL } from '../config';
 
 const ManajemenTurnamen = () => {
   const [tournaments, setTournaments] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
@@ -25,7 +26,22 @@ const ManajemenTurnamen = () => {
   const token = localStorage.getItem('token');
   const navigate = useNavigate();
 
-
+  const fetchUsers = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_URL}/users`, {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Accept': 'application/json'
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(data.data || []);
+      }
+    } catch (err) {
+      // silent fail
+    }
+  }, [token]);
 
   const fetchTournaments = useCallback(async () => {
     try {
@@ -53,7 +69,8 @@ const ManajemenTurnamen = () => {
   useEffect(() => {
     setTimeout(() => setLoading(true), 0);
     fetchTournaments();
-  }, [fetchTournaments]);
+    fetchUsers();
+  }, [fetchTournaments, fetchUsers]);
 
   const handleOpenModal = (mode, tournament = null) => {
     setModalMode(mode);
@@ -293,7 +310,7 @@ const ManajemenTurnamen = () => {
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: '#cbd5e1' }}>
                   <i className="fa-solid fa-user" style={{ color: '#a855f7' }}></i>
-                  <span>{tournament.user?.name || 'Unknown'}</span>
+                  <span>{users.find(u => u.id === tournament.user_id)?.name || tournament.user?.name || 'Admin Turnamen'}</span>
                 </div>
                 {(tournament.start_date || tournament.end_date) && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: '#cbd5e1' }}>
