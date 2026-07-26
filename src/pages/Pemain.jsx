@@ -112,6 +112,7 @@ const Pemain = () => {
       const url = modalMode === 'add' ? `${API_URL}/players` : `${API_URL}/players/${editingId}`;
       const method = modalMode === 'add' ? 'POST' : 'PUT';
 
+      const payload = { ...formData, itr_rating: formData.itr_rating === '' ? 0 : formData.itr_rating };
       const response = await fetch(url, {
         method,
         headers: {
@@ -119,7 +120,7 @@ const Pemain = () => {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json'
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
 
       if (!response.ok) {
@@ -234,6 +235,19 @@ const Pemain = () => {
   const playersPutra = filteredPlayers.filter(p => p.gender !== 'Perempuan');
   const playersPutri = filteredPlayers.filter(p => p.gender === 'Perempuan');
 
+  const handleExportCSV = () => {
+    let csv = "data:text/csv;charset=utf-8,No,Nama,Jenis Kelamin,Divisi,ITR Rating,Main,Menang,Kalah\n";
+    filteredPlayers.forEach((p, i) => {
+      csv += `${i + 1},"${p.name || ''}","${p.gender || ''}","${p.division || ''}",${p.itr_rating || 0},${p.match_played || 0},${p.win_count || 0},${p.lose_count || 0}\n`;
+    });
+    const link = document.createElement('a');
+    link.setAttribute('href', encodeURI(csv));
+    link.setAttribute('download', `daftar_pemain_ptm_bi.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div style={{ paddingTop: '120px', maxWidth: '1200px', margin: '0 auto', paddingLeft: '2rem', paddingRight: '2rem', minHeight: '70vh', paddingBottom: '5rem' }}>
       
@@ -288,6 +302,24 @@ const Pemain = () => {
               <i className="fa-solid fa-plus"></i> Tambah Pemain
             </button>
           )}
+          <button 
+            onClick={handleExportCSV}
+            style={{
+              padding: '12px 24px',
+              background: 'linear-gradient(135deg, #27ae60, #10b981)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '50px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)'
+            }}
+          >
+            <i className="fa-solid fa-file-excel"></i> Export Excel
+          </button>
         </div>
       </section>
 
