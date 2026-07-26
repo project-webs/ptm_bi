@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { API_URL } from '../config';
 import './PendaftaranTurnamen.css';
@@ -10,7 +10,6 @@ const PendaftaranTurnamen = () => {
 
   const [players, setPlayers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [actionLoadingId, setActionLoadingId] = useState(null);
   const [error, setError] = useState(null);
 
   // Search & Filters
@@ -29,7 +28,7 @@ const PendaftaranTurnamen = () => {
 
   const token = localStorage.getItem('token');
 
-  // Fetch all tournaments & players list
+  // Fetch tournaments list (initial only, with loading)
   const fetchInitialData = useCallback(async () => {
     try {
       setLoading(true);
@@ -49,7 +48,7 @@ const PendaftaranTurnamen = () => {
         setTournaments(list);
         if (list.length > 0) {
           const firstActive = list.find(t => t.status === 'pending' || t.status === 'ongoing') || list[0];
-          setSelectedSlug(firstActive.slug);
+          if (!selectedSlug) setSelectedSlug(firstActive.slug);
         }
       }
 
@@ -65,6 +64,22 @@ const PendaftaranTurnamen = () => {
     }
   }, [token]);
 
+  // Background poll: players list only (no loading state)
+  const fetchPlayersBackground = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_URL}/players?per_page=200`, {
+        headers: { 'Accept': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }
+      });
+      if (res.ok) {
+        const dataP = await res.json();
+        const pList = dataP.data || dataP || [];
+        setPlayers(pList);
+      }
+    } catch (err) {
+      /* silent */
+    }
+  }, [token]);
+
   // Fetch details of selected tournament (including participants)
   const fetchTournamentDetail = useCallback(async (slug) => {
     if (!slug) return;
@@ -77,7 +92,7 @@ const PendaftaranTurnamen = () => {
         setCurrentTournament(data.data || null);
       }
     } catch (err) {
-      console.error('Error fetching tournament details:', err);
+      /* silent */
     }
   }, [token]);
 
@@ -85,18 +100,33 @@ const PendaftaranTurnamen = () => {
     fetchInitialData();
   }, [fetchInitialData]);
 
+  // Realtime polling 
+  const pollRef = useRef(null);
   useEffect(() => {
     if (selectedSlug) {
       fetchTournamentDetail(selectedSlug);
-      
-      // Auto-refresh data every 3 seconds for real-time sync
-      const intervalId = setInterval(() => {
+      fetchPlayersBackground();
+
+      pollRef.current = setInterval(() => {
         fetchTournamentDetail(selectedSlug);
-      }, 3000);
-      
-      return () => clearInterval(intervalId);
+        fetchPlayersBackground();
+      }, 1500);
+
+      return () => clearInterval(pollRef.current);
     }
-  }, [selectedSlug, fetchTournamentDetail]);
+  }, [selectedSlug, fetchTournamentDetail, fetchPlayersBackground]);
+
+  // Refresh data when tab becomes visible
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && selectedSlug) {
+        fetchTournamentDetail(selectedSlug);
+        fetchPlayersBackground();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [selectedSlug, fetchTournamentDetail, fetchPlayersBackground]);
 
   // Map server participants to player IDs
   const serverParticipantPlayerIds = useMemo(() => {
@@ -431,7 +461,6 @@ const PendaftaranTurnamen = () => {
               <tbody>
                 {filteredPlayers.map((player, index) => {
                   const isChecked = isPlayerParticipating(player.id);
-                  const isSaving = actionLoadingId === player.id;
                   const currentGroup = playerGroups[player.id] !== undefined 
                     ? playerGroups[player.id] 
                     : (player.id <= 25 ? '(A)' : (player.id <= 72 ? '(B)' : ''));
