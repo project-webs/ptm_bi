@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { API_URL } from '../config';
 import './TurnamenDetail.css';
 
@@ -259,6 +261,186 @@ const TurnamenDetail = () => {
     }
   };
 
+  const handleExportSchedule = () => {
+    if (!tournament || !tournament.matches) return;
+
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+    // Header
+    doc.setFontSize(16);
+    doc.setTextColor(20, 30, 60);
+    doc.text(`Jadwal Pertandingan: ${tournament.name}`, 14, 18);
+
+    doc.setFontSize(10);
+    doc.setTextColor(120, 120, 120);
+    const formatName = tournament.type === 'single_elimination' ? 'Single Elimination' : 'Round Robin';
+    doc.text(`Format: ${formatName}`, 14, 25);
+    if (tournament.start_date) {
+      doc.text(`Tanggal: ${tournament.start_date.split('T')[0]}`, 14, 30);
+    }
+
+    if (tournament.type === 'round_robin') {
+      // Build flat rows grouped by group then round
+      const rows = tournament.matches
+        .slice()
+        .sort((a, b) => {
+          const ga = (a.bracket || '').replace('round_robin_', '');
+          const gb = (b.bracket || '').replace('round_robin_', '');
+          if (ga !== gb) return ga.localeCompare(gb);
+          return (a.round || 0) - (b.round || 0);
+        })
+        .map(match => {
+          const group = (match.bracket || '').replace('round_robin_', '') || 'A';
+          const p1 = match.player1_name || (match.is_bye ? 'BYE' : 'TBD');
+          const p2 = match.player2_name || 'TBD';
+          const score = match.status === 'finished' && !match.is_bye ? `${match.score1} - ${match.score2}` : '';
+          return [`Grup ${group}`, String(match.round || 1), '', '', p1, p2, score];
+        });
+
+      autoTable(doc, {
+        startY: 36,
+        head: [['Grup', 'Ronde', 'Jam', 'Meja', 'Peserta 1', 'Peserta 2', 'Skor']],
+        body: rows,
+        theme: 'grid',
+        styles: { fontSize: 9, cellPadding: 2.5 },
+        headStyles: { fillColor: [0, 212, 255], textColor: [0, 0, 0], fontStyle: 'bold' },
+        margin: { left: 14, right: 14 }
+      });
+    } else {
+      // Single elimination - list all matches with round label
+      const rows = tournament.matches.slice().sort((a, b) => a.round - b.round).map(match => {
+        let label = `Babak ${match.round}`;
+        if (match.bracket === 'final') label = 'Final';
+        else if (match.bracket === 'third_place') label = 'Perebutan Juara 3';
+        const p1 = match.player1_name || (match.is_bye ? 'BYE' : 'TBD');
+        const p2 = match.player2_name || 'TBD';
+        const score = match.status === 'finished' && !match.is_bye ? `${match.score1} - ${match.score2}` : '';
+        return [label, '', '', p1, p2, score];
+      });
+
+      autoTable(doc, {
+        startY: 36,
+        head: [['Babak', 'Jam', 'Meja', 'Peserta 1', 'Peserta 2', 'Skor']],
+        body: rows,
+        theme: 'grid',
+        styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: { fillColor: [0, 212, 255], textColor: [0, 0, 0], fontStyle: 'bold' },
+        margin: { left: 14, right: 14 }
+      });
+    }
+
+    const safeName = (tournament.name || 'turnamen').replace(/[^a-z0-9]/gi, '_');
+    doc.save(`Jadwal_${safeName}.pdf`);
+  };
+
+  const handleExportBracket = () => {
+    if (!tournament || !tournament.matches) return;
+
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+    doc.setFontSize(16);
+    doc.setTextColor(20, 30, 60);
+    doc.text(`Bracket: ${tournament.name}`, 14, 16);
+
+    doc.setFontSize(10);
+    doc.setTextColor(120, 120, 120);
+    doc.text('Format: Single Elimination', 14, 23);
+
+    // Group matches by round
+    const groups = {};
+    tournament.matches
+      .filter(m => m.bracket !== 'third_place')
+      .forEach(m => {
+        if (!groups[m.round]) groups[m.round] = [];
+        groups[m.round].push(m);
+      });
+
+    const roundKeys = Object.keys(groups).map(Number).sort((a, b) => a - b);
+    if (roundKeys.length === 0) {
+      doc.text('Belum ada pertandingan.', 14, 32);
+      doc.save('Bracket.pdf');
+      return;
+    }
+
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const margin = 14;
+    const availW = pageW - margin * 2;
+    const availH = pageH - 36 - 12;
+
+    const nRounds = roundKeys.length;
+    const colGap = 12;
+    const colW = (availW - colGap * (nRounds - 1)) / nRounds;
+
+    // slot height based on the largest round (first round has most matches)
+    const firstRoundCount = groups[roundKeys[0]].length;
+    const slotH = availH / firstRoundCount;
+    const cardH = Math.min(20, Math.max(10, slotH - 8));
+
+    const roundLabel = (n, count) => {
+      if (count === 1) return 'Final';
+      if (count === 2) return 'Semifinal';
+      if (count === 4) return 'Perempat Final';
+      return `Babak ${n}`;
+    };
+
+    const drawMatchCard = (m, x, y, w) => {
+      // box
+      doc.setDrawColor(110, 110, 120);
+      doc.setLineWidth(0.3);
+      doc.roundedRect(x, y, w, cardH, 1.5, 1.5);
+
+      // divider
+      doc.setDrawColor(200, 200, 200);
+      doc.line(x, y + cardH / 2, x + w, y + cardH / 2);
+
+      const p1 = m.player1_name || (m.is_bye ? 'BYE' : 'TBD');
+      const p2 = m.player2_name || 'TBD';
+      const halfTxt = Math.floor(cardH / 2 - 2);
+
+      // player 1
+      doc.setFont('helvetica', m.winner_id === m.participant1_id ? 'bold' : 'normal');
+      doc.setTextColor(40, 40, 40);
+      doc.text(truncate(p1, w), x + 2, y + Math.floor(halfTxt) + 2);
+      if (m.status === 'finished' && !m.is_bye && m.score1 != null) {
+        doc.text(String(m.score1), x + w - 3, y + Math.floor(halfTxt) + 2, { align: 'right' });
+      }
+
+      // player 2
+      doc.setFont('helvetica', m.winner_id === m.participant2_id ? 'bold' : 'normal');
+      doc.text(truncate(p2, w), x + 2, y + cardH - Math.floor(halfTxt) + 2);
+      if (m.status === 'finished' && !m.is_bye && m.score2 != null) {
+        doc.text(String(m.score2), x + w - 3, y + cardH - Math.floor(halfTxt) + 2, { align: 'right' });
+      }
+    };
+
+    roundKeys.forEach((roundKey, rIdx) => {
+      const x = margin + rIdx * (colW + colGap);
+      const matches = groups[roundKey].slice().sort((a, b) => a.match_number - b.match_number);
+
+      // Column header
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(90, 90, 90);
+      doc.text(roundLabel(roundKey, matches.length), x + colW / 2, 31, { align: 'center' });
+
+      // Evenly distribute matches in this round across the available height
+      matches.forEach((m, i) => {
+        const step = availH / matches.length;
+        const y = 36 + i * step + (step - cardH) / 2;
+        drawMatchCard(m, x, y, colW);
+      });
+    });
+
+    function truncate(txt, w) {
+      const max = Math.max(Math.floor(w / 1.6), 3);
+      return txt.length > max ? txt.slice(0, max - 1) + '…' : txt;
+    }
+
+    const safeName = (tournament.name || 'turnamen').replace(/[^a-z0-9]/gi, '_');
+    doc.save(`Bracket_${safeName}.pdf`);
+  };
+
   const handleResetBracket = async () => {
     if (!window.confirm('Reset bracket? Semua skor akan dihapus!')) return;
     try {
@@ -402,11 +584,10 @@ const TurnamenDetail = () => {
     // Group single elimination matches by round
     const groups = {};
     tournament.matches.forEach(m => {
-      if (m.bracket === 'final' || m.bracket === 'winner') {
-        const r = m.round;
-        if (!groups[r]) groups[r] = [];
-        groups[r].push(m);
-      }
+      if (m.bracket === 'third_place') return; // handled separately
+      const r = m.round;
+      if (!groups[r]) groups[r] = [];
+      groups[r].push(m);
     });
     return groups;
   }, [tournament]);
@@ -477,6 +658,16 @@ const TurnamenDetail = () => {
           {/* TAB: BRACKET */}
           {activeTab === 'bracket' && (
             <div className="glass" style={{ padding: '24px', borderRadius: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginBottom: '16px' }}>
+                <button onClick={handleExportSchedule} style={{ padding: '8px 16px', background: '#00d4ff', color: 'black', fontWeight: 'bold', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>
+                  <i className="fa-solid fa-file-pdf"></i> Export PDF Jadwal
+                </button>
+                {tournament.type === 'single_elimination' && tournament.status !== 'pending' && (
+                  <button onClick={handleExportBracket} style={{ padding: '8px 16px', background: '#10b981', color: 'white', fontWeight: 'bold', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>
+                    <i className="fa-solid fa-file-pdf"></i> Export Bracket
+                  </button>
+                )}
+              </div>
               {tournament.status === 'pending' ? (
                 <div style={{ textAlign: 'center', padding: '40px 20px' }}>
                   <div style={{ fontSize: '48px', marginBottom: '16px' }}>🏓</div>
