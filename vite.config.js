@@ -3,6 +3,6 @@ import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: '/ptm_bi/',
+  base: process.env.VERCEL ? '/' : '/ptm_bi/',
   plugins: [react()],
 })
