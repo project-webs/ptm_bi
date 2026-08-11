@@ -23,6 +23,10 @@ const TurnamenDetail = () => {
   const [bulkCustomNames, setBulkCustomNames] = useState('');
   const [bulkSelectedPlayers, setBulkSelectedPlayers] = useState([]);
 
+  // Bulk Seed Order
+  const [seedOrderText, setSeedOrderText] = useState('');
+  const [seedOrderLoading, setSeedOrderLoading] = useState(false);
+
   // Score Modal
   const [scoreModalOpen, setScoreModalOpen] = useState(false);
   const [currentMatch, setCurrentMatch] = useState(null);
@@ -42,9 +46,9 @@ const TurnamenDetail = () => {
   const fetchTournament = useCallback(async () => {
     try {
       const response = await fetch(`${API_URL}/tournaments/${slug}`, {
-        headers: { 
-          'Authorization': token ? `Bearer ${token}` : '', 
-          'Accept': 'application/json' 
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Accept': 'application/json'
         }
       });
       if (!response.ok) {
@@ -63,9 +67,9 @@ const TurnamenDetail = () => {
   const fetchPlayers = useCallback(async () => {
     try {
       const response = await fetch(`${API_URL}/players?per_page=200`, {
-        headers: { 
-          'Authorization': token ? `Bearer ${token}` : '', 
-          'Accept': 'application/json' 
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Accept': 'application/json'
         }
       });
       if (response.ok) {
@@ -154,43 +158,32 @@ const TurnamenDetail = () => {
       if (bulkSelectedPlayers.length === 0 && !bulkCustomNames.trim()) return;
       setAddLoading(true);
       try {
-        const promises = [];
-        
-        // Add selected existing players
-        bulkSelectedPlayers.forEach(playerId => {
-          promises.push(fetch(`${API_URL}/tournaments/${slug}/participants`, {
+        const addParticipant = (body) =>
+          fetch(`${API_URL}/tournaments/${slug}/participants`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
-            body: JSON.stringify({ player_id: playerId, name: null })
+            body: JSON.stringify(body)
           }).then(async res => {
-             if(!res.ok) {
-               const err = await res.json().catch(()=>({}));
-               throw new Error(err.message || 'Gagal menambah peserta bulk');
-             }
-             return res.json();
-          }));
-        });
-        
-        // Add custom names
+            if (!res.ok) {
+              const err = await res.json().catch(() => ({}));
+              throw new Error(err.message || 'Gagal menambah peserta bulk');
+            }
+            return res.json();
+          });
+
+        // Add selected existing players in selection order
+        for (const playerId of bulkSelectedPlayers) {
+          await addParticipant({ player_id: playerId, name: null });
+        }
+
+        // Add custom names in the order they were typed
         if (bulkCustomNames.trim()) {
           const names = bulkCustomNames.split('\n').map(n => n.trim()).filter(n => n);
-          names.forEach(name => {
-            promises.push(fetch(`${API_URL}/tournaments/${slug}/participants`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
-              body: JSON.stringify({ player_id: null, name: name })
-            }).then(async res => {
-               if(!res.ok) {
-                 const err = await res.json().catch(()=>({}));
-                 throw new Error(err.message || 'Gagal menambah peserta bulk');
-               }
-               return res.json();
-            }));
-          });
+          for (const name of names) {
+            await addParticipant({ player_id: null, name });
+          }
         }
-        
-        await Promise.all(promises);
-        
+
         setBulkSelectedPlayers([]);
         setBulkCustomNames('');
         fetchTournament();
@@ -236,6 +229,62 @@ const TurnamenDetail = () => {
       fetchTournament();
     } catch (err) {
       alert(err.message);
+    }
+  };
+
+  const normalizeName = (str) => (str || '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+  const handleApplySeedOrder = async (e) => {
+    e.preventDefault();
+    if (!seedOrderText.trim()) return;
+    if (!tournament || !tournament.participants) return;
+
+    setSeedOrderLoading(true);
+    try {
+      const order = seedOrderText.split('\n').map(n => n.trim()).filter(n => n);
+      const unmatched = [];
+
+      const seedUpdate = (p, seed) =>
+        fetch(`${API_URL}/tournaments/${slug}/participants/${p.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+          body: JSON.stringify({ seed })
+        }).then(async res => {
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.message || `Gagal mengatur seed untuk ${p.name}`);
+          }
+          return res.json();
+        });
+
+      for (let i = 0; i < order.length; i++) {
+        const target = normalizeName(order[i]);
+        // Match exact name first, then fallback to matching without the "(...)" club suffix
+        let match = tournament.participants.find(p => normalizeName(p.name) === target);
+        if (!match) {
+          const targetNoClub = target.replace(/\s*\([^)]*\)\s*$/, '');
+          match = tournament.participants.find(p => {
+            const pn = normalizeName(p.name);
+            const pnNoClub = pn.replace(/\s*\([^)]*\)\s*$/, '');
+            return pn === target || pn === targetNoClub || pnNoClub === target || pnNoClub === targetNoClub;
+          });
+        }
+        if (!match) {
+          unmatched.push(order[i]);
+          continue;
+        }
+        await seedUpdate(match, i + 1);
+      }
+
+      if (unmatched.length > 0) {
+        alert(`Nama tidak ditemukan (${unmatched.length}):\n${unmatched.join('\n')}`);
+      }
+      setSeedOrderText('');
+      fetchTournament();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setSeedOrderLoading(false);
     }
   };
 
@@ -331,6 +380,80 @@ const TurnamenDetail = () => {
 
     const safeName = (tournament.name || 'turnamen').replace(/[^a-z0-9]/gi, '_');
     doc.save(`Jadwal_${safeName}.pdf`);
+  };
+
+  const handleExportStandings = () => {
+    if (!tournament || !tournament.standings || tournament.standings.length === 0) return;
+
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const margin = 14;
+    let y = 0;
+
+    doc.setFontSize(16);
+    doc.setTextColor(20, 30, 60);
+    doc.text(`Klasemen: ${tournament.name}`, margin, 18);
+    y = 25;
+
+    doc.setFontSize(10);
+    doc.setTextColor(120, 120, 120);
+    const formatName = tournament.type === 'single_elimination' ? 'Single Elimination' : 'Round Robin';
+    doc.text(`Format: ${formatName}`, margin, y);
+    y += 5;
+    if (tournament.start_date) {
+      doc.text(`Tanggal: ${tournament.start_date.split('T')[0]}`, margin, y);
+      y += 5;
+    }
+
+    y += 2;
+
+    tournament.standings.forEach((group) => {
+      if (!group.standings || group.standings.length === 0) return;
+
+      if (y > 0 && y > doc.internal.pageSize.getHeight() - 40) {
+        doc.addPage();
+        y = 15;
+      }
+
+      doc.setFontSize(12);
+      doc.setTextColor(30, 41, 59);
+      doc.text(`Klasemen Grup ${group.name}`, margin, y);
+      y += 3;
+
+      const rows = group.standings.map((row, index) => [
+        String(index + 1),
+        row.name,
+        String(row.played),
+        String(row.won),
+        String(row.lost),
+        String(row.set_won),
+        String(row.set_lost),
+        row.set_diff > 0 ? `+${row.set_diff}` : String(row.set_diff),
+        String(row.point_won),
+        String(row.point_lost),
+        row.point_diff > 0 ? `+${row.point_diff}` : String(row.point_diff),
+        String(row.points)
+      ]);
+
+      autoTable(doc, {
+        startY: y,
+        head: [['#', 'Peserta', 'M', 'W', 'L', 'SW', 'SL', 'SD', 'PW', 'PL', 'PD', 'Poin']],
+        body: rows,
+        theme: 'grid',
+        styles: { fontSize: 9, cellPadding: 2.5 },
+        headStyles: { fillColor: [0, 212, 255], textColor: [0, 0, 0], fontStyle: 'bold' },
+        margin: { left: margin, right: margin },
+        didParseCell: (data) => {
+          if (data.section === 'body' && data.column.index === 1) {
+            data.cell.styles.fontStyle = 'bold';
+          }
+        }
+      });
+
+      y = doc.lastAutoTable.finalY + 10;
+    });
+
+    const safeName = (tournament.name || 'turnamen').replace(/[^a-z0-9]/gi, '_');
+    doc.save(`Klasemen_${safeName}.pdf`);
   };
 
   const handleExportBracket = () => {
@@ -461,24 +584,24 @@ const TurnamenDetail = () => {
     const s2 = match.score2 !== null ? match.score2 : '';
     let winId = match.winner_id || '';
     if (!winId && s1 !== '' && s2 !== '') {
-        if (parseInt(s1) > parseInt(s2)) winId = match.participant1_id;
-        else if (parseInt(s2) > parseInt(s1)) winId = match.participant2_id;
+      if (parseInt(s1) > parseInt(s2)) winId = match.participant1_id;
+      else if (parseInt(s2) > parseInt(s1)) winId = match.participant2_id;
     }
-    
+
     let pointsP1 = [];
     let pointsP2 = [];
     const totalSets = (parseInt(s1) || 0) + (parseInt(s2) || 0);
-    
+
     if (match.point_history && Array.isArray(match.point_history)) {
-       pointsP1 = match.point_history.map(p => p.p1 !== undefined ? p.p1 : '');
-       pointsP2 = match.point_history.map(p => p.p2 !== undefined ? p.p2 : '');
+      pointsP1 = match.point_history.map(p => p.p1 !== undefined ? p.p1 : '');
+      pointsP2 = match.point_history.map(p => p.p2 !== undefined ? p.p2 : '');
     }
-    
+
     while (pointsP1.length < totalSets) pointsP1.push('');
     while (pointsP2.length < totalSets) pointsP2.push('');
-    
-    setScoreData({ 
-      score1: s1, 
+
+    setScoreData({
+      score1: s1,
       score2: s2,
       winner_id: winId,
       points_p1: pointsP1.slice(0, totalSets),
@@ -492,7 +615,7 @@ const TurnamenDetail = () => {
       const updated = { ...prev, [field]: value };
       const s1 = parseInt(updated.score1) || 0;
       const s2 = parseInt(updated.score2) || 0;
-      
+
       if (s1 > s2 && currentMatch?.participant1_id) {
         updated.winner_id = currentMatch.participant1_id;
       } else if (s2 > s1 && currentMatch?.participant2_id) {
@@ -515,12 +638,12 @@ const TurnamenDetail = () => {
   };
 
   const handlePointChange = (playerIndex, setIndex, value) => {
-     setScoreData(prev => {
-        const arrName = playerIndex === 1 ? 'points_p1' : 'points_p2';
-        const newArr = [...prev[arrName]];
-        newArr[setIndex] = value;
-        return { ...prev, [arrName]: newArr };
-     });
+    setScoreData(prev => {
+      const arrName = playerIndex === 1 ? 'points_p1' : 'points_p2';
+      const newArr = [...prev[arrName]];
+      newArr[setIndex] = value;
+      return { ...prev, [arrName]: newArr };
+    });
   };
 
   const handleSaveScore = async (e) => {
@@ -534,8 +657,8 @@ const TurnamenDetail = () => {
       const response = await fetch(`${API_URL}/matches/${currentMatch.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
-        body: JSON.stringify({ 
-          score1: scoreData.score1, 
+        body: JSON.stringify({
+          score1: scoreData.score1,
           score2: scoreData.score2,
           winner_id: scoreData.winner_id,
           points_p1: scoreData.points_p1,
@@ -558,9 +681,9 @@ const TurnamenDetail = () => {
     try {
       const response = await fetch(`${API_URL}/matches/${currentMatch.id}/reset`, {
         method: 'POST',
-        headers: { 
-          'Authorization': `Bearer ${token}`, 
-          'Accept': 'application/json' 
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
         }
       });
       if (!response.ok) {
@@ -580,7 +703,7 @@ const TurnamenDetail = () => {
   const matchesByRound = useMemo(() => {
     if (!tournament || !tournament.matches) return {};
     if (tournament.type === 'round_robin') return {}; // Handle differently
-    
+
     // Group single elimination matches by round
     const groups = {};
     tournament.matches.forEach(m => {
@@ -620,13 +743,13 @@ const TurnamenDetail = () => {
 
   return (
     <div style={{ paddingTop: '100px', maxWidth: '1200px', margin: '0 auto', paddingLeft: '2rem', paddingRight: '2rem', minHeight: '70vh', paddingBottom: '5rem' }}>
-      
+
       {/* Breadcrumb */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: '#9ca3af', marginBottom: '20px' }}>
         <Link to="/manajemen-turnamen" style={{ color: '#00d4ff', textDecoration: 'none' }}>Manajemen Turnamen</Link>
         <i className="fa-solid fa-chevron-right" style={{ fontSize: '11px' }}></i>
         <span style={{ color: 'white', fontWeight: 'bold' }}>{tournament.name}</span>
-        
+
         <span style={{ marginLeft: 'auto', background: tournament.status === 'pending' ? 'rgba(255,193,7,0.2)' : tournament.status === 'ongoing' ? 'rgba(16,185,129,0.2)' : 'rgba(168,85,247,0.2)', color: tournament.status === 'pending' ? '#ffc107' : tournament.status === 'ongoing' ? '#10b981' : '#a855f7', padding: '4px 10px', borderRadius: '50px', fontSize: '12px', fontWeight: 'bold' }}>
           {tournament.status.toUpperCase()}
         </span>
@@ -635,16 +758,16 @@ const TurnamenDetail = () => {
       <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
         {/* Main Content Area */}
         <div style={{ flex: '1 1 700px', minWidth: 0 }}>
-          
+
           {/* Tabs Nav */}
           <div style={{ display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.05)', padding: '6px', borderRadius: '12px', marginBottom: '20px' }}>
-            <button 
+            <button
               onClick={() => setActiveTab('bracket')}
               style={{ flex: 1, padding: '10px 16px', borderRadius: '8px', border: 'none', background: activeTab === 'bracket' ? '#00d4ff' : 'transparent', color: activeTab === 'bracket' ? 'black' : '#9ca3af', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.3s' }}
             >
               <i className="fa-solid fa-sitemap"></i> Bracket
             </button>
-            <button 
+            <button
               onClick={() => setActiveTab('participants')}
               style={{ flex: 1, padding: '10px 16px', borderRadius: '8px', border: 'none', background: activeTab === 'participants' ? '#00d4ff' : 'transparent', color: activeTab === 'participants' ? 'black' : '#9ca3af', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.3s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
             >
@@ -662,6 +785,11 @@ const TurnamenDetail = () => {
                 <button onClick={handleExportSchedule} style={{ padding: '8px 16px', background: '#00d4ff', color: 'black', fontWeight: 'bold', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>
                   <i className="fa-solid fa-file-pdf"></i> Export PDF Jadwal
                 </button>
+                {tournament.type === 'round_robin' && tournament.standings && tournament.standings.length > 0 && (
+                  <button onClick={handleExportStandings} style={{ padding: '8px 16px', background: '#a855f7', color: 'white', fontWeight: 'bold', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>
+                    <i className="fa-solid fa-list-ol"></i> Export PDF Klasemen
+                  </button>
+                )}
                 {tournament.type === 'single_elimination' && tournament.status !== 'pending' && (
                   <button onClick={handleExportBracket} style={{ padding: '8px 16px', background: '#10b981', color: 'white', fontWeight: 'bold', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>
                     <i className="fa-solid fa-file-pdf"></i> Export Bracket
@@ -673,7 +801,7 @@ const TurnamenDetail = () => {
                   <div style={{ fontSize: '48px', marginBottom: '16px' }}>🏓</div>
                   <h3 style={{ color: 'white', marginBottom: '8px' }}>Bracket Belum Di-generate</h3>
                   <p style={{ color: '#9ca3af', marginBottom: '24px' }}>Tambahkan minimal 2 peserta, lalu klik tombol di bawah untuk membuat bracket.</p>
-                  
+
                   {token ? (
                     tournament.participants?.length >= 2 ? (
                       <form onSubmit={handleStartTournament}>
@@ -713,11 +841,11 @@ const TurnamenDetail = () => {
                   {tournament.type === 'single_elimination' && (
                     <div style={{ overflowX: 'auto', paddingBottom: '20px' }}>
                       <div style={{ display: 'flex', gap: '30px', minWidth: 'max-content' }}>
-                        {Object.keys(matchesByRound).sort((a,b)=>a-b).map((roundStr, rIdx, arr) => {
+                        {Object.keys(matchesByRound).sort((a, b) => a - b).map((roundStr, rIdx, arr) => {
                           const round = parseInt(roundStr);
                           const matches = matchesByRound[round];
                           const isLast = rIdx === arr.length - 1;
-                          
+
                           let label = `Babak ${round}`;
                           if (matches.length === 1 && isLast) {
                             label = 'Final';
@@ -730,24 +858,24 @@ const TurnamenDetail = () => {
                           } else if (matches.length === 4) {
                             label = 'Perempat Final';
                           }
-                          
+
                           return (
                             <div key={round} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-around', minWidth: '220px', position: 'relative' }}>
                               <div style={{ textAlign: 'center', fontSize: '12px', fontWeight: 'bold', color: '#9ca3af', textTransform: 'uppercase', marginBottom: '16px' }}>{label}</div>
                               <div style={{ display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'space-around', gap: '20px' }}>
-                                {matches.sort((a,b)=>a.match_number - b.match_number).map(match => {
+                                {matches.sort((a, b) => a.match_number - b.match_number).map(match => {
                                   const isFinal = match.bracket === 'final';
                                   const canClick = token && !match.is_bye && match.participant1_id && match.participant2_id && !match.is_rating_processed;
                                   return (
                                     <div key={match.id} style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1 }}>
                                       {/* Connector Line to next round */}
                                       {!isLast && <div style={{ position: 'absolute', right: '-30px', top: '50%', width: '30px', height: '2px', background: 'rgba(255,255,255,0.1)' }}></div>}
-                                      
-                                      <div 
+
+                                      <div
                                         onClick={() => canClick && openScoreModal(match)}
-                                        style={{ 
-                                          background: isFinal ? 'linear-gradient(135deg, rgba(245,158,11,0.1), rgba(0,0,0,0.5))' : 'rgba(0,0,0,0.3)', 
-                                          border: isFinal ? '2px solid rgba(245,158,11,0.5)' : '1px solid rgba(255,255,255,0.1)', 
+                                        style={{
+                                          background: isFinal ? 'linear-gradient(135deg, rgba(245,158,11,0.1), rgba(0,0,0,0.5))' : 'rgba(0,0,0,0.3)',
+                                          border: isFinal ? '2px solid rgba(245,158,11,0.5)' : '1px solid rgba(255,255,255,0.1)',
                                           borderRadius: '8px', width: '220px', cursor: canClick ? 'pointer' : 'default', overflow: 'hidden', position: 'relative',
                                           opacity: match.is_bye ? 0.7 : 1, transition: 'all 0.3s'
                                         }}
@@ -755,7 +883,7 @@ const TurnamenDetail = () => {
                                       >
                                         {isFinal && <div style={{ background: 'linear-gradient(90deg, #f59e0b, #ef4444)', color: 'white', fontSize: '10px', fontWeight: 'bold', textAlign: 'center', padding: '4px', textTransform: 'uppercase' }}>🏆 Final</div>}
                                         <div style={{ position: 'absolute', top: '4px', right: '6px', fontSize: '10px', color: '#6b7280', fontWeight: 'bold' }}>#{match.match_number}</div>
-                                        
+
                                         {/* Player 1 */}
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)', minHeight: '42px' }}>
                                           <span style={{ fontSize: '13px', color: match.winner_id === match.participant1_id ? '#10b981' : match.winner_id ? '#6b7280' : 'white', fontWeight: match.winner_id === match.participant1_id ? 'bold' : 'normal', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
@@ -766,7 +894,7 @@ const TurnamenDetail = () => {
                                           </span>
                                           {match.status === 'finished' && !match.is_bye && <span style={{ fontSize: '14px', fontWeight: 'bold', color: match.winner_id === match.participant1_id ? '#10b981' : '#6b7280' }}>{match.score1}</span>}
                                         </div>
-                                        
+
                                         {/* Player 2 */}
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', minHeight: '42px' }}>
                                           <span style={{ fontSize: '13px', color: match.winner_id === match.participant2_id ? '#10b981' : match.winner_id ? '#6b7280' : 'white', fontWeight: match.winner_id === match.participant2_id ? 'bold' : 'normal', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
@@ -817,15 +945,15 @@ const TurnamenDetail = () => {
                         <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
                           <div>
                             <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#9ca3af', textTransform: 'uppercase', marginBottom: '12px' }}>🥉 Perebutan Juara 3</div>
-                            <div 
+                            <div
                               onClick={() => canClickThird && openScoreModal(thirdPlaceMatch)}
-                              style={{ 
-                                background: 'rgba(0,0,0,0.3)', 
-                                border: '2px solid rgba(168,85,247,0.3)', 
-                                borderRadius: '8px', 
-                                width: '220px', 
-                                cursor: canClickThird ? 'pointer' : 'default', 
-                                overflow: 'hidden' 
+                              style={{
+                                background: 'rgba(0,0,0,0.3)',
+                                border: '2px solid rgba(168,85,247,0.3)',
+                                borderRadius: '8px',
+                                width: '220px',
+                                cursor: canClickThird ? 'pointer' : 'default',
+                                overflow: 'hidden'
                               }}
                               className={canClickThird ? "match-card hoverable" : "match-card"}
                             >
@@ -970,7 +1098,7 @@ const TurnamenDetail = () => {
                                     {matches.map(match => {
                                       const canClick = token && !match.is_bye && match.participant1_id && match.participant2_id && !match.is_rating_processed;
                                       return (
-                                        <div key={match.id} 
+                                        <div key={match.id}
                                           onClick={() => canClick && openScoreModal(match)}
                                           style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', cursor: canClick ? 'pointer' : 'default', transition: 'all 0.3s', position: 'relative', overflow: 'hidden' }}
                                           className={canClick ? 'hoverable match-card' : 'match-card'}
@@ -1001,7 +1129,7 @@ const TurnamenDetail = () => {
                                               ))}
                                             </div>
                                           )}
-                                          
+
                                           {canClick && (
                                             <div style={{ textAlign: 'center', padding: '6px', background: match.status === 'finished' ? 'rgba(255,255,255,0.02)' : 'rgba(0, 212, 255, 0.1)', fontSize: '11px', color: match.status === 'finished' ? '#9ca3af' : '#00d4ff', fontWeight: 600, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                                               <i className="fa-solid fa-pen"></i> {match.status === 'finished' ? 'Edit skor' : 'Input skor'}
@@ -1052,11 +1180,11 @@ const TurnamenDetail = () => {
                       </label>
                     </div>
                   </div>
-                  
+
                   {!isBulkMode ? (
                     <form onSubmit={handleAddParticipant} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                      <select 
-                        value={selectedPlayerId} 
+                      <select
+                        value={selectedPlayerId}
                         onChange={e => setSelectedPlayerId(e.target.value)}
                         disabled={customName !== ''}
                         style={{ flex: 1, minWidth: '200px', padding: '10px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'white' }}
@@ -1067,9 +1195,9 @@ const TurnamenDetail = () => {
                         ))}
                       </select>
                       <span style={{ color: '#6b7280', alignSelf: 'center' }}>atau</span>
-                      <input 
-                        type="text" 
-                        placeholder="Ketik Nama Bebas..." 
+                      <input
+                        type="text"
+                        placeholder="Ketik Nama Bebas..."
                         value={customName}
                         onChange={e => setCustomName(e.target.value)}
                         disabled={selectedPlayerId !== ''}
@@ -1087,16 +1215,16 @@ const TurnamenDetail = () => {
                           <div style={{ maxHeight: '150px', overflowY: 'auto', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '10px' }}>
                             {players.map(p => (
                               <label key={p.id} style={{ display: 'block', color: 'white', marginBottom: '8px', cursor: 'pointer', fontSize: '14px' }}>
-                                <input 
-                                  type="checkbox" 
-                                  value={p.id} 
+                                <input
+                                  type="checkbox"
+                                  value={p.id}
                                   checked={bulkSelectedPlayers.includes(p.id)}
                                   onChange={e => {
-                                    if(e.target.checked) setBulkSelectedPlayers(prev => [...prev, p.id]);
+                                    if (e.target.checked) setBulkSelectedPlayers(prev => [...prev, p.id]);
                                     else setBulkSelectedPlayers(prev => prev.filter(id => id !== p.id));
                                   }}
                                   style={{ marginRight: '8px' }}
-                                /> 
+                                />
                                 {p.name} {p.division ? `(${p.division})` : ''}
                               </label>
                             ))}
@@ -1105,7 +1233,7 @@ const TurnamenDetail = () => {
                         </div>
                         <div style={{ flex: 1, minWidth: '250px' }}>
                           <label style={{ display: 'block', color: '#9ca3af', marginBottom: '8px', fontSize: '13px' }}>Nama Bebas (1 nama per baris)</label>
-                          <textarea 
+                          <textarea
                             value={bulkCustomNames}
                             onChange={e => setBulkCustomNames(e.target.value)}
                             placeholder="Joko&#10;Budi&#10;Siti"
@@ -1123,25 +1251,42 @@ const TurnamenDetail = () => {
                 </div>
               )}
 
+              {token && tournament.status === 'pending' && (
+                <form onSubmit={handleApplySeedOrder} style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,212,255,0.2)', borderRadius: '12px', padding: '16px', marginBottom: '24px' }}>
+                  <div style={{ color: '#00d4ff', fontSize: '1rem', marginBottom: '12px' }}><i className="fa-solid fa-list-ol"></i> Atur Urutan Seed</div>
+                  <textarea
+                    value={seedOrderText}
+                    onChange={e => setSeedOrderText(e.target.value)}
+                    placeholder={'1 nama per baris, sesuai urutan seed yang diinginkan. '}
+                    style={{ width: '100%', height: '120px', padding: '10px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'white', resize: 'vertical' }}
+                  />
+                  <div style={{ textAlign: 'right', marginTop: '12px' }}>
+                    <button type="submit" disabled={seedOrderLoading || !seedOrderText.trim()} style={{ padding: '10px 24px', background: '#00d4ff', color: 'black', fontWeight: 'bold', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
+                      {seedOrderLoading ? 'Menyimpan...' : 'Terapkan Urutan Seed'}
+                    </button>
+                  </div>
+                </form>
+              )}
+
               {localParticipants?.length > 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {localParticipants.map((p, idx) => {
                     const isPendingAdmin = token && tournament.status === 'pending';
                     return (
-                      <div 
-                        key={p.id} 
+                      <div
+                        key={p.id}
                         draggable={isPendingAdmin}
                         onDragStart={(e) => handleDragStart(e, idx)}
                         onDragOver={(e) => handleDragOver(e, idx)}
                         onDrop={(e) => handleDrop(e, idx)}
                         onDragEnd={() => setDraggedIdx(null)}
-                        style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          justifyContent: 'space-between', 
-                          background: draggedIdx === idx ? 'rgba(0, 212, 255, 0.1)' : 'rgba(255,255,255,0.02)', 
-                          padding: '12px 16px', 
-                          borderRadius: '8px', 
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          background: draggedIdx === idx ? 'rgba(0, 212, 255, 0.1)' : 'rgba(255,255,255,0.02)',
+                          padding: '12px 16px',
+                          borderRadius: '8px',
                           border: draggedIdx === idx ? '1px solid #00d4ff' : '1px solid rgba(255,255,255,0.05)',
                           cursor: isPendingAdmin ? 'grab' : 'default',
                           opacity: draggedIdx === idx ? 0.5 : 1,
@@ -1188,7 +1333,7 @@ const TurnamenDetail = () => {
         <div style={{ flex: '0 0 300px', width: '100%' }}>
           <div className="glass" style={{ padding: '20px', borderRadius: '16px', position: 'sticky', top: '100px' }}>
             <h3 style={{ fontSize: '13px', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '16px' }}>Detail Turnamen</h3>
-            
+
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.1)', fontSize: '13px' }}>
               <span style={{ color: '#9ca3af' }}>Format</span>
               <span style={{ color: 'white', fontWeight: 'bold' }}>{tournament.type === 'single_elimination' ? 'Single Elimination' : 'Round Robin'}</span>
@@ -1213,7 +1358,7 @@ const TurnamenDetail = () => {
               <span style={{ color: '#9ca3af' }}>Gunakan Seed</span>
               <span style={{ color: 'white', fontWeight: 'bold' }}>{tournament.seeded ? 'Ya' : 'Tidak'}</span>
             </div>
-            
+
             {tournament.description && (
               <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
                 <div style={{ fontSize: '11px', color: '#9ca3af', textTransform: 'uppercase', marginBottom: '8px' }}>Deskripsi</div>
@@ -1243,7 +1388,7 @@ const TurnamenDetail = () => {
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px' }}>
           <div style={{ background: 'rgba(30, 30, 46, 0.95)', border: '1px solid rgba(0, 212, 255, 0.3)', borderRadius: '16px', padding: '2rem', width: '100%', maxWidth: '400px', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}>
             <h2 style={{ color: 'white', marginBottom: '24px', textAlign: 'center', fontSize: '1.25rem' }}>Input Skor Pertandingan</h2>
-            
+
             <form onSubmit={handleSaveScore}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', background: 'rgba(255,255,255,0.05)', padding: '15px', borderRadius: '12px' }}>
                 <div style={{ flex: 1, color: 'white', fontWeight: 'bold', fontSize: '15px' }}>{currentMatch.player1_name}</div>
@@ -1268,10 +1413,10 @@ const TurnamenDetail = () => {
                   <div style={{ fontSize: '12px', color: '#9ca3af', fontWeight: 'bold', textAlign: 'center', marginBottom: '15px' }}>POIN PER SET (Opsional)</div>
                   {scoreData.points_p1.map((val, idx) => (
                     <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                        <span style={{ fontSize: '10px', color: '#9ca3af', fontWeight: 'bold' }}>S{idx + 1}</span>
-                        <input type="number" min="0" max="99" value={scoreData.points_p1[idx]} onChange={e => handlePointChange(1, idx, e.target.value)} style={{ flex: 1, height: '36px', textAlign: 'center', background: 'rgba(0,0,0,0.5)', border: '1px solid #374151', borderRadius: '6px', color: 'white' }} />
-                        <span style={{ color: '#6b7280' }}>-</span>
-                        <input type="number" min="0" max="99" value={scoreData.points_p2[idx]} onChange={e => handlePointChange(2, idx, e.target.value)} style={{ flex: 1, height: '36px', textAlign: 'center', background: 'rgba(0,0,0,0.5)', border: '1px solid #374151', borderRadius: '6px', color: 'white' }} />
+                      <span style={{ fontSize: '10px', color: '#9ca3af', fontWeight: 'bold' }}>S{idx + 1}</span>
+                      <input type="number" min="0" max="99" value={scoreData.points_p1[idx]} onChange={e => handlePointChange(1, idx, e.target.value)} style={{ flex: 1, height: '36px', textAlign: 'center', background: 'rgba(0,0,0,0.5)', border: '1px solid #374151', borderRadius: '6px', color: 'white' }} />
+                      <span style={{ color: '#6b7280' }}>-</span>
+                      <input type="number" min="0" max="99" value={scoreData.points_p2[idx]} onChange={e => handlePointChange(2, idx, e.target.value)} style={{ flex: 1, height: '36px', textAlign: 'center', background: 'rgba(0,0,0,0.5)', border: '1px solid #374151', borderRadius: '6px', color: 'white' }} />
                     </div>
                   ))}
                 </div>
@@ -1280,12 +1425,12 @@ const TurnamenDetail = () => {
               <div style={{ marginBottom: '30px' }}>
                 <div style={{ fontSize: '12px', color: '#9ca3af', fontWeight: 'bold', marginBottom: '10px' }}>PEMENANG</div>
                 <div style={{ display: 'flex', gap: '10px' }}>
-                  <div onClick={() => setScoreData(prev => ({...prev, winner_id: currentMatch.participant1_id}))} style={{ flex: 1, padding: '12px', textAlign: 'center', cursor: 'pointer', border: scoreData.winner_id === currentMatch.participant1_id ? '2px solid #10b981' : '1px solid #374151', borderRadius: '8px', background: scoreData.winner_id === currentMatch.participant1_id ? 'rgba(16,185,129,0.1)' : 'transparent', color: scoreData.winner_id === currentMatch.participant1_id ? '#10b981' : 'white', fontWeight: 'bold' }}>
-                    {scoreData.winner_id === currentMatch.participant1_id && <i className="fa-solid fa-crown" style={{marginRight: '6px'}}></i>}
+                  <div onClick={() => setScoreData(prev => ({ ...prev, winner_id: currentMatch.participant1_id }))} style={{ flex: 1, padding: '12px', textAlign: 'center', cursor: 'pointer', border: scoreData.winner_id === currentMatch.participant1_id ? '2px solid #10b981' : '1px solid #374151', borderRadius: '8px', background: scoreData.winner_id === currentMatch.participant1_id ? 'rgba(16,185,129,0.1)' : 'transparent', color: scoreData.winner_id === currentMatch.participant1_id ? '#10b981' : 'white', fontWeight: 'bold' }}>
+                    {scoreData.winner_id === currentMatch.participant1_id && <i className="fa-solid fa-crown" style={{ marginRight: '6px' }}></i>}
                     {currentMatch.player1_name}
                   </div>
-                  <div onClick={() => setScoreData(prev => ({...prev, winner_id: currentMatch.participant2_id}))} style={{ flex: 1, padding: '12px', textAlign: 'center', cursor: 'pointer', border: scoreData.winner_id === currentMatch.participant2_id ? '2px solid #f59e0b' : '1px solid #374151', borderRadius: '8px', background: scoreData.winner_id === currentMatch.participant2_id ? 'rgba(245,158,11,0.1)' : 'transparent', color: scoreData.winner_id === currentMatch.participant2_id ? '#f59e0b' : 'white', fontWeight: 'bold' }}>
-                    {scoreData.winner_id === currentMatch.participant2_id && <i className="fa-solid fa-crown" style={{marginRight: '6px'}}></i>}
+                  <div onClick={() => setScoreData(prev => ({ ...prev, winner_id: currentMatch.participant2_id }))} style={{ flex: 1, padding: '12px', textAlign: 'center', cursor: 'pointer', border: scoreData.winner_id === currentMatch.participant2_id ? '2px solid #f59e0b' : '1px solid #374151', borderRadius: '8px', background: scoreData.winner_id === currentMatch.participant2_id ? 'rgba(245,158,11,0.1)' : 'transparent', color: scoreData.winner_id === currentMatch.participant2_id ? '#f59e0b' : 'white', fontWeight: 'bold' }}>
+                    {scoreData.winner_id === currentMatch.participant2_id && <i className="fa-solid fa-crown" style={{ marginRight: '6px' }}></i>}
                     {currentMatch.player2_name}
                   </div>
                 </div>
