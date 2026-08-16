@@ -54,6 +54,7 @@ const Navbar = () => {
             </Link>
             <div className="dropdown-content">
               <Link to="/turnamen" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-trophy"></i> Juara Turnamen Double</Link>
+              <Link to="/turnamen-ganda-hut-2026" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-medal"></i> Turnamen Ganda, HUT Kemerdekaan Agustus 2026</Link>
               <Link to="/proyek" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-diagram-project"></i> Proyek Pembangunan</Link>
               <Link to="/peresmian" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-building-circle-check"></i> Peresmian Tempat Latihan</Link>
               <Link to="/irtt" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-ranking-star"></i> IRTT PTM BI</Link>

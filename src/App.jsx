@@ -5,6 +5,7 @@ import Footer from './components/Footer';
 import Home from './pages/Home';
 import Jadwal from './pages/Jadwal';
 import Berita from './pages/Berita';
+import TurnamenGanda from './pages/TurnamenGanda';
 import Pengurus from './pages/Pengurus';
 import Pemain from './pages/Pemain';
 import Peresmian from './pages/Peresmian';
@@ -36,6 +37,7 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/berita" element={<Berita />} />
+            <Route path="/turnamen-ganda-hut-2026" element={<TurnamenGanda />} />
             <Route path="/jadwal" element={<Jadwal />} />
             <Route path="/pengurus" element={<Pengurus />} />
             <Route path="/pemain" element={<Pemain />} />
