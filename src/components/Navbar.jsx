@@ -58,6 +58,7 @@ const Navbar = () => {
               <Link to="/proyek" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-diagram-project"></i> Proyek Pembangunan</Link>
               <Link to="/peresmian" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-building-circle-check"></i> Peresmian Tempat Latihan</Link>
               <Link to="/irtt" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-ranking-star"></i> IRTT PTM BI</Link>
+              <Link to="/latihan-griya-loka" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-handshake"></i> Latihan Bersama PTM Griya Loka</Link>
             </div>
           </div>
           
