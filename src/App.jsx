@@ -6,6 +6,7 @@ import Home from './pages/Home';
 import Jadwal from './pages/Jadwal';
 import Berita from './pages/Berita';
 import LatihanGriyaLoka from './pages/LatihanGriyaLoka';
+import WwpcCup1 from './pages/WwpcCup1';
 import TurnamenGanda from './pages/TurnamenGanda';
 import Pengurus from './pages/Pengurus';
 import Pemain from './pages/Pemain';
@@ -39,6 +40,7 @@ function App() {
             <Route path="/about" element={<AboutPage />} />
             <Route path="/berita" element={<Berita />} />
             <Route path="/latihan-griya-loka" element={<LatihanGriyaLoka />} />
+            <Route path="/wwpc-cup-1" element={<WwpcCup1 />} />
             <Route path="/turnamen-ganda-hut-2026" element={<TurnamenGanda />} />
             <Route path="/jadwal" element={<Jadwal />} />
             <Route path="/pengurus" element={<Pengurus />} />

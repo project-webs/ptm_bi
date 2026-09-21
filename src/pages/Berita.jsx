@@ -2,6 +2,12 @@ import { Link } from 'react-router-dom';
 
 const beritaList = [
   {
+    to: '/wwpc-cup-1',
+    icon: 'fa-solid fa-medal',
+    title: 'Turnamen WWPC Cup 1',
+    desc: 'WWPC Cup 1 - Women Pingpong Gathering di GOR PTM Citra Grand Cibubur, 20 September 2026.'
+  },
+  {
     to: '/turnamen-ganda-hut-2026',
     icon: 'fa-solid fa-medal',
     title: 'Turnamen Ganda, HUT Kemerdekaan Agustus 2026',
