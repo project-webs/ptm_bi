@@ -20,6 +20,12 @@ const beritaList = [
     desc: 'Latihan bersama PTM Batan Indah dan PTM Griya Loka, pererat silaturahmi dan semangat kebersamaan.'
   },
   {
+    to: '/latihan-atthoharoh',
+    icon: 'fa-solid fa-handshake',
+    title: 'Latihan Bersama PTM Atthoharoh',
+    desc: 'Ucapan terima kasih atas terlaksananya Latber PTM Batan Indah dan PTM Atthoharoh, Jumat 9 Oktober 2026.'
+  },
+  {
     to: '/peresmian',
     icon: 'fa-solid fa-building-circle-check',
     title: 'Peresmian Tempat Latihan Baru',
